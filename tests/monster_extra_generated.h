@@ -104,6 +104,7 @@ struct MonsterExtra FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   MonsterExtraT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
   void UnPackTo(MonsterExtraT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static void UnPackToFrom(MonsterExtraT *_o, const MonsterExtra *_fb, const flatbuffers::resolver_function_t *_resolver = nullptr);
   static flatbuffers::Offset<MonsterExtra> Pack(flatbuffers::FlatBufferBuilder &_fbb, const MonsterExtraT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
@@ -169,12 +170,19 @@ inline MonsterExtraT *MonsterExtra::UnPack(const flatbuffers::resolver_function_
 inline void MonsterExtra::UnPackTo(MonsterExtraT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = testf_nan(); _o->testf_nan = _e; };
-  { auto _e = testf_pinf(); _o->testf_pinf = _e; };
-  { auto _e = testf_ninf(); _o->testf_ninf = _e; };
-  { auto _e = testd_nan(); _o->testd_nan = _e; };
-  { auto _e = testd_pinf(); _o->testd_pinf = _e; };
-  { auto _e = testd_ninf(); _o->testd_ninf = _e; };
+  UnPackToFrom(_o, this, _resolver);
+}
+
+inline void MonsterExtra::UnPackToFrom(MonsterExtraT *_o, const MonsterExtra *_fb, const flatbuffers::resolver_function_t *_resolver) {
+  (void)_o;
+  (void)_fb;
+  (void)_resolver;
+  { auto _e = _fb->testf_nan(); _o->testf_nan = _e; };
+  { auto _e = _fb->testf_pinf(); _o->testf_pinf = _e; };
+  { auto _e = _fb->testf_ninf(); _o->testf_ninf = _e; };
+  { auto _e = _fb->testd_nan(); _o->testd_nan = _e; };
+  { auto _e = _fb->testd_pinf(); _o->testd_pinf = _e; };
+  { auto _e = _fb->testd_ninf(); _o->testd_ninf = _e; };
 }
 
 inline flatbuffers::Offset<MonsterExtra> MonsterExtra::Pack(flatbuffers::FlatBufferBuilder &_fbb, const MonsterExtraT* _o, const flatbuffers::rehasher_function_t *_rehasher) {

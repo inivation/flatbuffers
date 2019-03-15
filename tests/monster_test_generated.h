@@ -687,6 +687,7 @@ struct InParentNamespace FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   InParentNamespaceT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
   void UnPackTo(InParentNamespaceT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static void UnPackToFrom(InParentNamespaceT *_o, const InParentNamespace *_fb, const flatbuffers::resolver_function_t *_resolver = nullptr);
   static flatbuffers::Offset<InParentNamespace> Pack(flatbuffers::FlatBufferBuilder &_fbb, const InParentNamespaceT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
@@ -736,6 +737,7 @@ struct Monster FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   MonsterT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
   void UnPackTo(MonsterT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static void UnPackToFrom(MonsterT *_o, const Monster *_fb, const flatbuffers::resolver_function_t *_resolver = nullptr);
   static flatbuffers::Offset<Monster> Pack(flatbuffers::FlatBufferBuilder &_fbb, const MonsterT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
@@ -800,6 +802,7 @@ struct TestSimpleTableWithEnum FLATBUFFERS_FINAL_CLASS : private flatbuffers::Ta
   }
   TestSimpleTableWithEnumT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
   void UnPackTo(TestSimpleTableWithEnumT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static void UnPackToFrom(TestSimpleTableWithEnumT *_o, const TestSimpleTableWithEnum *_fb, const flatbuffers::resolver_function_t *_resolver = nullptr);
   static flatbuffers::Offset<TestSimpleTableWithEnum> Pack(flatbuffers::FlatBufferBuilder &_fbb, const TestSimpleTableWithEnumT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
@@ -887,6 +890,7 @@ struct Stat FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   StatT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
   void UnPackTo(StatT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static void UnPackToFrom(StatT *_o, const Stat *_fb, const flatbuffers::resolver_function_t *_resolver = nullptr);
   static flatbuffers::Offset<Stat> Pack(flatbuffers::FlatBufferBuilder &_fbb, const StatT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
@@ -981,6 +985,7 @@ struct Referrable FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   ReferrableT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
   void UnPackTo(ReferrableT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static void UnPackToFrom(ReferrableT *_o, const Referrable *_fb, const flatbuffers::resolver_function_t *_resolver = nullptr);
   static flatbuffers::Offset<Referrable> Pack(flatbuffers::FlatBufferBuilder &_fbb, const ReferrableT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
@@ -1591,6 +1596,7 @@ struct Monster FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   MonsterT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
   void UnPackTo(MonsterT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static void UnPackToFrom(MonsterT *_o, const Monster *_fb, const flatbuffers::resolver_function_t *_resolver = nullptr);
   static flatbuffers::Offset<Monster> Pack(flatbuffers::FlatBufferBuilder &_fbb, const MonsterT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
@@ -2151,6 +2157,7 @@ struct TypeAliases FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   TypeAliasesT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
   void UnPackTo(TypeAliasesT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static void UnPackToFrom(TypeAliasesT *_o, const TypeAliases *_fb, const flatbuffers::resolver_function_t *_resolver = nullptr);
   static flatbuffers::Offset<TypeAliases> Pack(flatbuffers::FlatBufferBuilder &_fbb, const TypeAliasesT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
@@ -2280,6 +2287,13 @@ inline InParentNamespaceT *InParentNamespace::UnPack(const flatbuffers::resolver
 inline void InParentNamespace::UnPackTo(InParentNamespaceT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
+  UnPackToFrom(_o, this, _resolver);
+}
+
+inline void InParentNamespace::UnPackToFrom(InParentNamespaceT *_o, const InParentNamespace *_fb, const flatbuffers::resolver_function_t *_resolver) {
+  (void)_o;
+  (void)_fb;
+  (void)_resolver;
 }
 
 inline flatbuffers::Offset<InParentNamespace> InParentNamespace::Pack(flatbuffers::FlatBufferBuilder &_fbb, const InParentNamespaceT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -2304,6 +2318,13 @@ inline MonsterT *Monster::UnPack(const flatbuffers::resolver_function_t *_resolv
 
 inline void Monster::UnPackTo(MonsterT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
+  (void)_resolver;
+  UnPackToFrom(_o, this, _resolver);
+}
+
+inline void Monster::UnPackToFrom(MonsterT *_o, const Monster *_fb, const flatbuffers::resolver_function_t *_resolver) {
+  (void)_o;
+  (void)_fb;
   (void)_resolver;
 }
 
@@ -2332,7 +2353,14 @@ inline TestSimpleTableWithEnumT *TestSimpleTableWithEnum::UnPack(const flatbuffe
 inline void TestSimpleTableWithEnum::UnPackTo(TestSimpleTableWithEnumT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = color(); _o->color = _e; };
+  UnPackToFrom(_o, this, _resolver);
+}
+
+inline void TestSimpleTableWithEnum::UnPackToFrom(TestSimpleTableWithEnumT *_o, const TestSimpleTableWithEnum *_fb, const flatbuffers::resolver_function_t *_resolver) {
+  (void)_o;
+  (void)_fb;
+  (void)_resolver;
+  { auto _e = _fb->color(); _o->color = _e; };
 }
 
 inline flatbuffers::Offset<TestSimpleTableWithEnum> TestSimpleTableWithEnum::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TestSimpleTableWithEnumT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -2358,9 +2386,16 @@ inline StatT *Stat::UnPack(const flatbuffers::resolver_function_t *_resolver) co
 inline void Stat::UnPackTo(StatT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = id(); if (_e) _o->id = _e->str(); };
-  { auto _e = val(); _o->val = _e; };
-  { auto _e = count(); _o->count = _e; };
+  UnPackToFrom(_o, this, _resolver);
+}
+
+inline void Stat::UnPackToFrom(StatT *_o, const Stat *_fb, const flatbuffers::resolver_function_t *_resolver) {
+  (void)_o;
+  (void)_fb;
+  (void)_resolver;
+  { auto _e = _fb->id(); if (_e) _o->id = _e->str(); };
+  { auto _e = _fb->val(); _o->val = _e; };
+  { auto _e = _fb->count(); _o->count = _e; };
 }
 
 inline flatbuffers::Offset<Stat> Stat::Pack(flatbuffers::FlatBufferBuilder &_fbb, const StatT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -2390,7 +2425,14 @@ inline ReferrableT *Referrable::UnPack(const flatbuffers::resolver_function_t *_
 inline void Referrable::UnPackTo(ReferrableT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = id(); _o->id = _e; };
+  UnPackToFrom(_o, this, _resolver);
+}
+
+inline void Referrable::UnPackToFrom(ReferrableT *_o, const Referrable *_fb, const flatbuffers::resolver_function_t *_resolver) {
+  (void)_o;
+  (void)_fb;
+  (void)_resolver;
+  { auto _e = _fb->id(); _o->id = _e; };
 }
 
 inline flatbuffers::Offset<Referrable> Referrable::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ReferrableT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -2416,60 +2458,67 @@ inline MonsterT *Monster::UnPack(const flatbuffers::resolver_function_t *_resolv
 inline void Monster::UnPackTo(MonsterT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = pos(); if (_e) _o->pos = flatbuffers::unique_ptr<Vec3>(new Vec3(*_e)); };
-  { auto _e = mana(); _o->mana = _e; };
-  { auto _e = hp(); _o->hp = _e; };
-  { auto _e = name(); if (_e) _o->name = _e->str(); };
-  { auto _e = inventory(); if (_e) { _o->inventory.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->inventory[_i] = _e->Get(_i); } } };
-  { auto _e = color(); _o->color = _e; };
-  { auto _e = test_type(); _o->test.type = _e; };
-  { auto _e = test(); if (_e) _o->test.value = AnyUnion::UnPack(_e, test_type(), _resolver); };
-  { auto _e = test4(); if (_e) { _o->test4.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->test4[_i] = *_e->Get(_i); } } };
-  { auto _e = testarrayofstring(); if (_e) { _o->testarrayofstring.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->testarrayofstring[_i] = _e->Get(_i)->str(); } } };
-  { auto _e = testarrayoftables(); if (_e) { _o->testarrayoftables.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->testarrayoftables[_i] = flatbuffers::unique_ptr<MonsterT>(_e->Get(_i)->UnPack(_resolver)); } } };
-  { auto _e = enemy(); if (_e) _o->enemy = flatbuffers::unique_ptr<MonsterT>(_e->UnPack(_resolver)); };
-  { auto _e = testnestedflatbuffer(); if (_e) { _o->testnestedflatbuffer.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->testnestedflatbuffer[_i] = _e->Get(_i); } } };
-  { auto _e = testempty(); if (_e) _o->testempty = flatbuffers::unique_ptr<StatT>(_e->UnPack(_resolver)); };
-  { auto _e = testbool(); _o->testbool = _e; };
-  { auto _e = testhashs32_fnv1(); _o->testhashs32_fnv1 = _e; };
-  { auto _e = testhashu32_fnv1(); _o->testhashu32_fnv1 = _e; };
-  { auto _e = testhashs64_fnv1(); _o->testhashs64_fnv1 = _e; };
-  { auto _e = testhashu64_fnv1(); _o->testhashu64_fnv1 = _e; };
-  { auto _e = testhashs32_fnv1a(); _o->testhashs32_fnv1a = _e; };
-  { auto _e = testhashu32_fnv1a(); //scalar resolver, naked 
+  UnPackToFrom(_o, this, _resolver);
+}
+
+inline void Monster::UnPackToFrom(MonsterT *_o, const Monster *_fb, const flatbuffers::resolver_function_t *_resolver) {
+  (void)_o;
+  (void)_fb;
+  (void)_resolver;
+  { auto _e = _fb->pos(); if (_e) _o->pos = flatbuffers::unique_ptr<Vec3>(new Vec3(*_e)); };
+  { auto _e = _fb->mana(); _o->mana = _e; };
+  { auto _e = _fb->hp(); _o->hp = _e; };
+  { auto _e = _fb->name(); if (_e) _o->name = _e->str(); };
+  { auto _e = _fb->inventory(); if (_e) { _o->inventory.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->inventory[_i] = _e->Get(_i); } } };
+  { auto _e = _fb->color(); _o->color = _e; };
+  { auto _e = _fb->test_type(); _o->test.type = _e; };
+  { auto _e = _fb->test(); if (_e) _o->test.value = AnyUnion::UnPack(_e, _fb->test_type(), _resolver); };
+  { auto _e = _fb->test4(); if (_e) { _o->test4.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->test4[_i] = *_e->Get(_i); } } };
+  { auto _e = _fb->testarrayofstring(); if (_e) { _o->testarrayofstring.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->testarrayofstring[_i] = _e->Get(_i)->str(); } } };
+  { auto _e = _fb->testarrayoftables(); if (_e) { _o->testarrayoftables.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->testarrayoftables[_i] = flatbuffers::unique_ptr<MonsterT>(_e->Get(_i)->UnPack(_resolver)); } } };
+  { auto _e = _fb->enemy(); if (_e) _o->enemy = flatbuffers::unique_ptr<MonsterT>(_e->UnPack(_resolver)); };
+  { auto _e = _fb->testnestedflatbuffer(); if (_e) { _o->testnestedflatbuffer.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->testnestedflatbuffer[_i] = _e->Get(_i); } } };
+  { auto _e = _fb->testempty(); if (_e) _o->testempty = flatbuffers::unique_ptr<StatT>(_e->UnPack(_resolver)); };
+  { auto _e = _fb->testbool(); _o->testbool = _e; };
+  { auto _e = _fb->testhashs32_fnv1(); _o->testhashs32_fnv1 = _e; };
+  { auto _e = _fb->testhashu32_fnv1(); _o->testhashu32_fnv1 = _e; };
+  { auto _e = _fb->testhashs64_fnv1(); _o->testhashs64_fnv1 = _e; };
+  { auto _e = _fb->testhashu64_fnv1(); _o->testhashu64_fnv1 = _e; };
+  { auto _e = _fb->testhashs32_fnv1a(); _o->testhashs32_fnv1a = _e; };
+  { auto _e = _fb->testhashu32_fnv1a(); //scalar resolver, naked 
 if (_resolver) (*_resolver)(reinterpret_cast<void **>(&_o->testhashu32_fnv1a), static_cast<flatbuffers::hash_value_t>(_e)); else _o->testhashu32_fnv1a = nullptr; };
-  { auto _e = testhashs64_fnv1a(); _o->testhashs64_fnv1a = _e; };
-  { auto _e = testhashu64_fnv1a(); _o->testhashu64_fnv1a = _e; };
-  { auto _e = testarrayofbools(); if (_e) { _o->testarrayofbools.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->testarrayofbools[_i] = _e->Get(_i) != 0; } } };
-  { auto _e = testf(); _o->testf = _e; };
-  { auto _e = testf2(); _o->testf2 = _e; };
-  { auto _e = testf3(); _o->testf3 = _e; };
-  { auto _e = testarrayofstring2(); if (_e) { _o->testarrayofstring2.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->testarrayofstring2[_i] = _e->Get(_i)->str(); } } };
-  { auto _e = testarrayofsortedstruct(); if (_e) { _o->testarrayofsortedstruct.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->testarrayofsortedstruct[_i] = *_e->Get(_i); } } };
-  { auto _e = flex(); if (_e) { _o->flex.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->flex[_i] = _e->Get(_i); } } };
-  { auto _e = test5(); if (_e) { _o->test5.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->test5[_i] = *_e->Get(_i); } } };
-  { auto _e = vector_of_longs(); if (_e) { _o->vector_of_longs.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->vector_of_longs[_i] = _e->Get(_i); } } };
-  { auto _e = vector_of_doubles(); if (_e) { _o->vector_of_doubles.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->vector_of_doubles[_i] = _e->Get(_i); } } };
-  { auto _e = parent_namespace_test(); if (_e) _o->parent_namespace_test = flatbuffers::unique_ptr<MyGame::InParentNamespaceT>(_e->UnPack(_resolver)); };
-  { auto _e = vector_of_referrables(); if (_e) { _o->vector_of_referrables.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->vector_of_referrables[_i] = flatbuffers::unique_ptr<ReferrableT>(_e->Get(_i)->UnPack(_resolver)); } } };
-  { auto _e = single_weak_reference(); //scalar resolver, naked 
+  { auto _e = _fb->testhashs64_fnv1a(); _o->testhashs64_fnv1a = _e; };
+  { auto _e = _fb->testhashu64_fnv1a(); _o->testhashu64_fnv1a = _e; };
+  { auto _e = _fb->testarrayofbools(); if (_e) { _o->testarrayofbools.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->testarrayofbools[_i] = _e->Get(_i) != 0; } } };
+  { auto _e = _fb->testf(); _o->testf = _e; };
+  { auto _e = _fb->testf2(); _o->testf2 = _e; };
+  { auto _e = _fb->testf3(); _o->testf3 = _e; };
+  { auto _e = _fb->testarrayofstring2(); if (_e) { _o->testarrayofstring2.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->testarrayofstring2[_i] = _e->Get(_i)->str(); } } };
+  { auto _e = _fb->testarrayofsortedstruct(); if (_e) { _o->testarrayofsortedstruct.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->testarrayofsortedstruct[_i] = *_e->Get(_i); } } };
+  { auto _e = _fb->flex(); if (_e) { _o->flex.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->flex[_i] = _e->Get(_i); } } };
+  { auto _e = _fb->test5(); if (_e) { _o->test5.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->test5[_i] = *_e->Get(_i); } } };
+  { auto _e = _fb->vector_of_longs(); if (_e) { _o->vector_of_longs.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->vector_of_longs[_i] = _e->Get(_i); } } };
+  { auto _e = _fb->vector_of_doubles(); if (_e) { _o->vector_of_doubles.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->vector_of_doubles[_i] = _e->Get(_i); } } };
+  { auto _e = _fb->parent_namespace_test(); if (_e) _o->parent_namespace_test = flatbuffers::unique_ptr<MyGame::InParentNamespaceT>(_e->UnPack(_resolver)); };
+  { auto _e = _fb->vector_of_referrables(); if (_e) { _o->vector_of_referrables.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->vector_of_referrables[_i] = flatbuffers::unique_ptr<ReferrableT>(_e->Get(_i)->UnPack(_resolver)); } } };
+  { auto _e = _fb->single_weak_reference(); //scalar resolver, naked 
 if (_resolver) (*_resolver)(reinterpret_cast<void **>(&_o->single_weak_reference), static_cast<flatbuffers::hash_value_t>(_e)); else _o->single_weak_reference = nullptr; };
-  { auto _e = vector_of_weak_references(); if (_e) { _o->vector_of_weak_references.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { //vector resolver, naked
+  { auto _e = _fb->vector_of_weak_references(); if (_e) { _o->vector_of_weak_references.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { //vector resolver, naked
 if (_resolver) (*_resolver)(reinterpret_cast<void **>(&_o->vector_of_weak_references[_i]), static_cast<flatbuffers::hash_value_t>(_e->Get(_i))); else _o->vector_of_weak_references[_i] = nullptr; } } };
-  { auto _e = vector_of_strong_referrables(); if (_e) { _o->vector_of_strong_referrables.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->vector_of_strong_referrables[_i] = flatbuffers::unique_ptr<ReferrableT>(_e->Get(_i)->UnPack(_resolver)); } } };
-  { auto _e = co_owning_reference(); //scalar resolver, naked 
+  { auto _e = _fb->vector_of_strong_referrables(); if (_e) { _o->vector_of_strong_referrables.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->vector_of_strong_referrables[_i] = flatbuffers::unique_ptr<ReferrableT>(_e->Get(_i)->UnPack(_resolver)); } } };
+  { auto _e = _fb->co_owning_reference(); //scalar resolver, naked 
 if (_resolver) (*_resolver)(reinterpret_cast<void **>(&_o->co_owning_reference), static_cast<flatbuffers::hash_value_t>(_e)); else _o->co_owning_reference = nullptr; };
-  { auto _e = vector_of_co_owning_references(); if (_e) { _o->vector_of_co_owning_references.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { //vector resolver, default_ptr_type
+  { auto _e = _fb->vector_of_co_owning_references(); if (_e) { _o->vector_of_co_owning_references.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { //vector resolver, default_ptr_type
 if (_resolver) (*_resolver)(reinterpret_cast<void **>(&_o->vector_of_co_owning_references[_i]), static_cast<flatbuffers::hash_value_t>(_e->Get(_i)));/* else do nothing */; } } };
-  { auto _e = non_owning_reference(); //scalar resolver, naked 
+  { auto _e = _fb->non_owning_reference(); //scalar resolver, naked 
 if (_resolver) (*_resolver)(reinterpret_cast<void **>(&_o->non_owning_reference), static_cast<flatbuffers::hash_value_t>(_e)); else _o->non_owning_reference = nullptr; };
-  { auto _e = vector_of_non_owning_references(); if (_e) { _o->vector_of_non_owning_references.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { //vector resolver, naked
+  { auto _e = _fb->vector_of_non_owning_references(); if (_e) { _o->vector_of_non_owning_references.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { //vector resolver, naked
 if (_resolver) (*_resolver)(reinterpret_cast<void **>(&_o->vector_of_non_owning_references[_i]), static_cast<flatbuffers::hash_value_t>(_e->Get(_i))); else _o->vector_of_non_owning_references[_i] = nullptr; } } };
-  { auto _e = any_unique_type(); _o->any_unique.type = _e; };
-  { auto _e = any_unique(); if (_e) _o->any_unique.value = AnyUniqueAliasesUnion::UnPack(_e, any_unique_type(), _resolver); };
-  { auto _e = any_ambiguous_type(); _o->any_ambiguous.type = _e; };
-  { auto _e = any_ambiguous(); if (_e) _o->any_ambiguous.value = AnyAmbiguousAliasesUnion::UnPack(_e, any_ambiguous_type(), _resolver); };
-  { auto _e = vector_of_enums(); if (_e) { _o->vector_of_enums.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->vector_of_enums[_i] = static_cast<Color>(_e->Get(_i)); } } };
+  { auto _e = _fb->any_unique_type(); _o->any_unique.type = _e; };
+  { auto _e = _fb->any_unique(); if (_e) _o->any_unique.value = AnyUniqueAliasesUnion::UnPack(_e, _fb->any_unique_type(), _resolver); };
+  { auto _e = _fb->any_ambiguous_type(); _o->any_ambiguous.type = _e; };
+  { auto _e = _fb->any_ambiguous(); if (_e) _o->any_ambiguous.value = AnyAmbiguousAliasesUnion::UnPack(_e, _fb->any_ambiguous_type(), _resolver); };
+  { auto _e = _fb->vector_of_enums(); if (_e) { _o->vector_of_enums.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->vector_of_enums[_i] = static_cast<Color>(_e->Get(_i)); } } };
 }
 
 inline flatbuffers::Offset<Monster> Monster::Pack(flatbuffers::FlatBufferBuilder &_fbb, const MonsterT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -2587,18 +2636,25 @@ inline TypeAliasesT *TypeAliases::UnPack(const flatbuffers::resolver_function_t 
 inline void TypeAliases::UnPackTo(TypeAliasesT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = i8(); _o->i8 = _e; };
-  { auto _e = u8(); _o->u8 = _e; };
-  { auto _e = i16(); _o->i16 = _e; };
-  { auto _e = u16(); _o->u16 = _e; };
-  { auto _e = i32(); _o->i32 = _e; };
-  { auto _e = u32(); _o->u32 = _e; };
-  { auto _e = i64(); _o->i64 = _e; };
-  { auto _e = u64(); _o->u64 = _e; };
-  { auto _e = f32(); _o->f32 = _e; };
-  { auto _e = f64(); _o->f64 = _e; };
-  { auto _e = v8(); if (_e) { _o->v8.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->v8[_i] = _e->Get(_i); } } };
-  { auto _e = vf64(); if (_e) { _o->vf64.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->vf64[_i] = _e->Get(_i); } } };
+  UnPackToFrom(_o, this, _resolver);
+}
+
+inline void TypeAliases::UnPackToFrom(TypeAliasesT *_o, const TypeAliases *_fb, const flatbuffers::resolver_function_t *_resolver) {
+  (void)_o;
+  (void)_fb;
+  (void)_resolver;
+  { auto _e = _fb->i8(); _o->i8 = _e; };
+  { auto _e = _fb->u8(); _o->u8 = _e; };
+  { auto _e = _fb->i16(); _o->i16 = _e; };
+  { auto _e = _fb->u16(); _o->u16 = _e; };
+  { auto _e = _fb->i32(); _o->i32 = _e; };
+  { auto _e = _fb->u32(); _o->u32 = _e; };
+  { auto _e = _fb->i64(); _o->i64 = _e; };
+  { auto _e = _fb->u64(); _o->u64 = _e; };
+  { auto _e = _fb->f32(); _o->f32 = _e; };
+  { auto _e = _fb->f64(); _o->f64 = _e; };
+  { auto _e = _fb->v8(); if (_e) { _o->v8.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->v8[_i] = _e->Get(_i); } } };
+  { auto _e = _fb->vf64(); if (_e) { _o->vf64.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->vf64[_i] = _e->Get(_i); } } };
 }
 
 inline flatbuffers::Offset<TypeAliases> TypeAliases::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TypeAliasesT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
