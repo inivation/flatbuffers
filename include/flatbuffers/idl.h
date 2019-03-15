@@ -277,7 +277,8 @@ struct FieldDef : public Definition {
   bool shared;  // Field will be using string pooling (i.e. CreateSharedString)
                 // as default serialization behavior if field is a string.
   bool native_inline;  // Field will be defined inline (instead of as a pointer)
-                       // for native tables if field is a struct.
+                       // for native tables if field is a struct, a table or
+                       // a vector thereof.
   bool flexbuffer;     // This field contains FlexBuffer data.
   StructDef *nested_flatbuffer;  // This field contains nested FlatBuffer data.
   size_t padding;                // Bytes to always pad after this field.
