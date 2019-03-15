@@ -798,6 +798,16 @@ class CppGenerator : public BaseGenerator {
            (inclass ? " = nullptr" : "") + ") const";
   }
 
+  std::string TableUnPackToFromSignature(const StructDef &struct_def,
+                                         bool inclass, const IDLOptions &opts) {
+    return std::string(inclass ? "static " : "") + "void " +
+           (inclass ? "" : Name(struct_def) + "::") + "UnPackToFrom(" +
+           NativeName(Name(struct_def), &struct_def, opts) + " *" +
+           "_o, const " + Name(struct_def) +
+           " *_fb, const flatbuffers::resolver_function_t *_resolver" +
+           (inclass ? " = nullptr" : "") + ")";
+  }
+
   void GenMiniReflectPre(const StructDef *struct_def) {
     code_.SetValue("NAME", struct_def->name);
     code_ += "inline const flatbuffers::TypeTable *{{NAME}}TypeTable();";
@@ -1957,6 +1967,8 @@ class CppGenerator : public BaseGenerator {
           "  " + TableUnPackSignature(struct_def, true, parser_.opts) + ";";
       code_ +=
           "  " + TableUnPackToSignature(struct_def, true, parser_.opts) + ";";
+      code_ += "  " +
+               TableUnPackToFromSignature(struct_def, true, parser_.opts) + ";";
       code_ += "  " + TablePackSignature(struct_def, true, parser_.opts) + ";";
     }
 
@@ -2600,6 +2612,16 @@ class CppGenerator : public BaseGenerator {
                TableUnPackToSignature(struct_def, false, parser_.opts) + " {";
       code_ += "  (void)_o;";
       code_ += "  (void)_resolver;";
+      code_ += "  UnPackToFrom(_o, this, _resolver);";
+      code_ += "}";
+      code_ += "";
+
+      code_ += "inline " +
+               TableUnPackToFromSignature(struct_def, false, parser_.opts) +
+               " {";
+      code_ += "  (void)_o;";
+      code_ += "  (void)_fb;";
+      code_ += "  (void)_resolver;";
 
       for (auto it = struct_def.fields.vec.begin();
            it != struct_def.fields.vec.end(); ++it) {
@@ -2614,7 +2636,7 @@ class CppGenerator : public BaseGenerator {
             GenUnpackFieldStatement(field, is_union ? *(it + 1) : nullptr);
 
         code_.SetValue("FIELD_NAME", Name(field));
-        auto prefix = "  { auto _e = {{FIELD_NAME}}(); ";
+        auto prefix = "  { auto _e = _fb->{{FIELD_NAME}}(); ";
         auto check = IsScalar(field.value.type.base_type) ? "" : "if (_e) ";
         auto postfix = " };";
         code_ += std::string(prefix) + check + statement + postfix;
