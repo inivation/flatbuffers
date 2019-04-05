@@ -381,6 +381,12 @@ class CppGenerator : public BaseGenerator {
         code_ += "}";
         code_ += "";
 
+        // Add the identifier to the root-type too.
+        code_ +=
+            "const char *{{STRUCT_NAME}}::identifier = "
+            "{{STRUCT_NAME}}Identifier();";
+        code_ += "";
+
         // Check if a buffer has the identifier.
         code_ += "inline \\";
         code_ += "bool {{STRUCT_NAME}}BufferHasIdentifier(const void *buf) {";
@@ -1769,6 +1775,10 @@ class CppGenerator : public BaseGenerator {
         " : private flatbuffers::Table {";
     if (parser_.opts.generate_object_based_api) {
       code_ += "  typedef {{NATIVE_NAME}} NativeTableType;";
+    }
+    if (parser_.root_struct_def_ && parser_.root_struct_def_ == &struct_def &&
+        parser_.file_identifier_.length()) {
+      code_ += "  static const char *identifier;";
     }
     if (parser_.opts.mini_reflect != IDLOptions::kNone) {
       code_ +=
