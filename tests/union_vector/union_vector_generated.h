@@ -315,7 +315,7 @@ inline bool operator==(const MovieT &lhs, const MovieT &rhs) {
 
 struct Movie FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef MovieT NativeTableType;
-  static const char *identifier;
+  static FLATBUFFERS_CONSTEXPR const char *identifier = "MOVI";
   static const flatbuffers::TypeTable *MiniReflectTypeTable() {
     return MovieTypeTable();
   }
@@ -798,8 +798,6 @@ inline Movie *GetMutableMovie(void *buf) {
 inline const char *MovieIdentifier() {
   return "MOVI";
 }
-
-const char *Movie::identifier = MovieIdentifier();
 
 inline bool MovieBufferHasIdentifier(const void *buf) {
   return flatbuffers::BufferHasIdentifier(

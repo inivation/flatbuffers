@@ -1136,7 +1136,7 @@ inline bool operator==(const MonsterT &lhs, const MonsterT &rhs) {
 /// an example documentation comment: monster object
 struct Monster FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef MonsterT NativeTableType;
-  static const char *identifier;
+  static FLATBUFFERS_CONSTEXPR const char *identifier = "MONS";
   static const flatbuffers::TypeTable *MiniReflectTypeTable() {
     return MonsterTypeTable();
   }
@@ -3416,8 +3416,6 @@ inline Monster *GetMutableMonster(void *buf) {
 inline const char *MonsterIdentifier() {
   return "MONS";
 }
-
-const char *Monster::identifier = MonsterIdentifier();
 
 inline bool MonsterBufferHasIdentifier(const void *buf) {
   return flatbuffers::BufferHasIdentifier(

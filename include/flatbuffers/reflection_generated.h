@@ -1011,7 +1011,7 @@ inline flatbuffers::Offset<Service> CreateServiceDirect(
 }
 
 struct Schema FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  static const char *identifier;
+  static FLATBUFFERS_CONSTEXPR const char *identifier = "BFBS";
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_OBJECTS = 4,
     VT_ENUMS = 6,
@@ -1146,8 +1146,6 @@ inline const reflection::Schema *GetSizePrefixedSchema(const void *buf) {
 inline const char *SchemaIdentifier() {
   return "BFBS";
 }
-
-const char *Schema::identifier = SchemaIdentifier();
 
 inline bool SchemaBufferHasIdentifier(const void *buf) {
   return flatbuffers::BufferHasIdentifier(
