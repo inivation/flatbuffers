@@ -40,7 +40,7 @@ void FlatCompiler::LoadBinarySchema(flatbuffers::Parser &parser,
                                     const std::string &filename,
                                     const std::string &contents) {
   if (!parser.Deserialize(reinterpret_cast<const uint8_t *>(contents.c_str()),
-      contents.size())) {
+                          contents.size())) {
     Error("failed to load binary schema: " + filename, false, false);
   }
 }
@@ -116,6 +116,7 @@ std::string FlatCompiler::GetUsageString(const char *program_name) const {
     "                     T::data(), T::size(), T::resize() and T::[] must be supported.\n"
     "  --object-prefix    Customise class prefix for C++ object-based API.\n"
     "  --object-suffix    Customise class suffix for C++ object-based API.\n"
+    "  --internal-suffix  Customise internal class suffix for C++ object-based API.\n"
     "                     Default value is \"T\".\n"
     "  --no-js-exports    Removes Node.js style export lines in JS.\n"
     "  --goog-js-export   Uses goog.exports* for closure compiler exporting in JS.\n"
@@ -268,6 +269,10 @@ int FlatCompiler::Compile(int argc, const char **argv) {
       } else if (arg == "--object-suffix") {
         if (++argi >= argc) Error("missing suffix following" + arg, true);
         opts.object_suffix = argv[argi];
+      } else if (arg == "--internal-suffix") {
+        if (++argi >= argc)
+          Error("missing internal suffix following" + arg, true);
+        opts.internal_class_suffix = argv[argi];
       } else if (arg == "--gen-all") {
         opts.generate_all = true;
         opts.include_dependence_headers = false;
@@ -392,7 +397,8 @@ int FlatCompiler::Compile(int argc, const char **argv) {
                 "\" matches the schema, use --raw-binary to read this file"
                 " anyway.");
         } else if (!flatbuffers::BufferHasIdentifier(
-                       contents.c_str(), parser->file_identifier_.c_str(), opts.size_prefixed)) {
+                       contents.c_str(), parser->file_identifier_.c_str(),
+                       opts.size_prefixed)) {
           Error("binary \"" + filename +
                 "\" does not have expected file_identifier \"" +
                 parser->file_identifier_ +
