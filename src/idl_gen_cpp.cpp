@@ -671,7 +671,7 @@ class CppGenerator : public BaseGenerator {
           auto native_type = type.struct_def->attributes.Lookup("native_type");
           if (native_type) { type_name = native_type->constant; }
           if (invector || field.native_inline) {
-            return type_name;
+            return type_name + parser_.opts.internal_class_suffix;
           } else {
             return GenTypeNativePtr(
                 type_name + parser_.opts.internal_class_suffix, &field, false);
