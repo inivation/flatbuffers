@@ -36,13 +36,13 @@ int main(int /*argc*/, const char * /*argv*/[]) {
   auto axe = CreateWeapon(builder, weapon_two_name, weapon_two_damage);
 
   // Create a FlatBuffer's `vector` from the `std::vector`.
-  std::vector<flatbuffers::Offset<WeaponT>> weapons_vector;
+  std::vector<flatbuffers::Offset<WeaponFlatbuffer>> weapons_vector;
   weapons_vector.push_back(sword);
   weapons_vector.push_back(axe);
   auto weapons = builder.CreateVector(weapons_vector);
 
   // Second, serialize the rest of the objects needed by the Monster.
-  auto position = Vec3T(1.0f, 2.0f, 3.0f);
+  auto position = Vec3Flatbuffer(1.0f, 2.0f, 3.0f);
 
   auto name = builder.CreateString("MyMonster");
 
@@ -95,7 +95,7 @@ int main(int /*argc*/, const char * /*argv*/[]) {
 
   // Get and test the `Equipment` union (`equipped` field).
   assert(monster->equipped_type() == Equipment_Weapon);
-  auto equipped = static_cast<const WeaponT *>(monster->equipped());
+  auto equipped = static_cast<const WeaponFlatbuffer *>(monster->equipped());
   assert(equipped->name()->str() == "Axe");
   assert(equipped->damage() == 5);
   (void)equipped;

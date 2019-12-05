@@ -63,7 +63,7 @@ std::string test_data_path =
 flatbuffers::DetachedBuffer CreateFlatBufferTest(std::string &buffer) {
   flatbuffers::FlatBufferBuilder builder;
 
-  auto vec = Vec3T(1, 2, 3, 0, Color_Red, TestT(10, 20));
+  auto vec = Vec3Flatbuffer(1, 2, 3, 0, Color_Red, TestFlatbuffer(10, 20));
 
   auto name = builder.CreateString("MyMonster");
 
@@ -76,14 +76,14 @@ flatbuffers::DetachedBuffer CreateFlatBufferTest(std::string &buffer) {
   //                                                              10, &inv_buf);
   // memcpy(inv_buf, inv_data, 10);
 
-  TestT tests[] = { TestT(10, 20), TestT(30, 40) };
+  TestFlatbuffer tests[] = { TestFlatbuffer(10, 20), TestFlatbuffer(30, 40) };
   auto testv = builder.CreateVectorOfStructs(tests, 2);
 
-  // clang-format off
+// clang-format off
   #ifndef FLATBUFFERS_CPP98_STL
     // Create a vector of structures from a lambda.
-    auto testv2 = builder.CreateVectorOfStructs<TestT>(
-          2, [&](size_t i, TestT* s) -> void {
+    auto testv2 = builder.CreateVectorOfStructs<TestFlatbuffer>(
+          2, [&](size_t i, TestFlatbuffer* s) -> void {
             *s = tests[i];
           });
   #else
@@ -97,7 +97,7 @@ flatbuffers::DetachedBuffer CreateFlatBufferTest(std::string &buffer) {
 
   // create monster with very few fields set:
   // (same functionality as CreateMonster below, but sets fields manually)
-  flatbuffers::Offset<MonsterT> mlocs[3];
+  flatbuffers::Offset<MonsterFlatbuffer> mlocs[3];
   auto fred = builder.CreateString("Fred");
   auto barney = builder.CreateString("Barney");
   auto wilma = builder.CreateString("Wilma");
@@ -134,11 +134,11 @@ flatbuffers::DetachedBuffer CreateFlatBufferTest(std::string &buffer) {
 
   // Create an array of sorted structs,
   // can be used with binary search when read:
-  std::vector<AbilityT> abilities;
-  abilities.push_back(AbilityT(4, 40));
-  abilities.push_back(AbilityT(3, 30));
-  abilities.push_back(AbilityT(2, 20));
-  abilities.push_back(AbilityT(1, 10));
+  std::vector<AbilityFlatbuffer> abilities;
+  abilities.push_back(AbilityFlatbuffer(4, 40));
+  abilities.push_back(AbilityFlatbuffer(3, 30));
+  abilities.push_back(AbilityFlatbuffer(2, 20));
+  abilities.push_back(AbilityFlatbuffer(1, 10));
   auto vecofstructs = builder.CreateVectorOfSortedStructs(&abilities);
 
   // Create a nested FlatBuffer.
@@ -186,7 +186,7 @@ flatbuffers::DetachedBuffer CreateFlatBufferTest(std::string &buffer) {
 
   FinishMonsterBuffer(builder, mloc);
 
-  // clang-format off
+// clang-format off
   #ifdef FLATBUFFERS_TEST_VERBOSE
   // print byte data for debugging:
   auto p = builder.GetBufferPointer();
@@ -210,7 +210,7 @@ void AccessFlatBufferTest(const uint8_t *flatbuf, size_t length,
   flatbuffers::Verifier verifier(flatbuf, length);
   TEST_EQ(VerifyMonsterBuffer(verifier), true);
 
-  // clang-format off
+// clang-format off
   #ifdef FLATBUFFERS_TRACK_VERIFIER_BUFFER_SIZE
     std::vector<uint8_t> test_buff;
     test_buff.resize(length * 2);
@@ -281,7 +281,7 @@ void AccessFlatBufferTest(const uint8_t *flatbuf, size_t length,
 
   // Example of accessing a union:
   TEST_EQ(monster->test_type(), Any_Monster);  // First make sure which it is.
-  auto monster2 = reinterpret_cast<const MonsterT *>(monster->test());
+  auto monster2 = reinterpret_cast<const MonsterFlatbuffer *>(monster->test());
   TEST_NOTNULL(monster2);
   TEST_EQ_STR(monster2->name()->c_str(), "Fred");
 
@@ -325,7 +325,7 @@ void AccessFlatBufferTest(const uint8_t *flatbuf, size_t length,
       TEST_EQ(true, (left->KeyCompareLessThan(right)));
     }
     TEST_NOTNULL(vecofstructs->LookupByKey(3));
-    TEST_EQ(static_cast<const AbilityT *>(nullptr),
+    TEST_EQ(static_cast<const AbilityFlatbuffer *>(nullptr),
             vecofstructs->LookupByKey(5));
   }
 
@@ -358,10 +358,10 @@ void AccessFlatBufferTest(const uint8_t *flatbuf, size_t length,
   // Since Flatbuffers uses explicit mechanisms to override the default
   // compiler alignment, double check that the compiler indeed obeys them:
   // (Test consists of a short and byte):
-  TEST_EQ(flatbuffers::AlignOf<TestT>(), 2UL);
-  TEST_EQ(sizeof(TestT), 4UL);
+  TEST_EQ(flatbuffers::AlignOf<TestFlatbuffer>(), 2UL);
+  TEST_EQ(sizeof(TestFlatbuffer), 4UL);
 
-  const flatbuffers::Vector<const TestT *> *tests_array[] = {
+  const flatbuffers::Vector<const TestFlatbuffer *> *tests_array[] = {
     monster->test4(),
     monster->test5(),
   };
@@ -380,8 +380,9 @@ void AccessFlatBufferTest(const uint8_t *flatbuf, size_t length,
   }
 
   // Checking for presence of fields:
-  TEST_EQ(flatbuffers::IsFieldPresent(monster, MonsterT::VT_HP), true);
-  TEST_EQ(flatbuffers::IsFieldPresent(monster, MonsterT::VT_MANA), false);
+  TEST_EQ(flatbuffers::IsFieldPresent(monster, MonsterFlatbuffer::VT_HP), true);
+  TEST_EQ(flatbuffers::IsFieldPresent(monster, MonsterFlatbuffer::VT_MANA),
+          false);
 
   // Obtaining a buffer from a root:
   TEST_EQ(GetBufferStartFromRootPointer(monster), flatbuf);
@@ -547,12 +548,12 @@ void SizePrefixedTest() {
 }
 
 void TriviallyCopyableTest() {
-  // clang-format off
+// clang-format off
   #if __GNUG__ && __GNUC__ < 5
     TEST_EQ(__has_trivial_copy(Vec3), true);
   #else
     #if __cplusplus >= 201103L
-      TEST_EQ(std::is_trivially_copyable<Vec3T>::value, true);
+      TEST_EQ(std::is_trivially_copyable<Vec3Flatbuffer>::value, true);
     #endif
   #endif
   // clang-format on
@@ -867,8 +868,8 @@ void ReflectionTest(uint8_t *flatbuf, size_t length) {
 }
 
 void MiniReflectFlatBuffersTest(uint8_t *flatbuf) {
-  auto s = flatbuffers::FlatBufferToString(flatbuf,
-                                           MonsterT::MiniReflectTypeTable());
+  auto s = flatbuffers::FlatBufferToString(
+      flatbuf, MonsterFlatbuffer::MiniReflectTypeTable());
   TEST_EQ_STR(
       s.c_str(),
       "{ "
@@ -1068,7 +1069,7 @@ void FuzzTest2() {
     }
   };
 
-  // clang-format off
+// clang-format off
   #define AddToSchemaAndInstances(schema_add, instance_add) \
     RndDef::Add(definitions, schema, instances_per_definition, \
                 schema_add, instance_add, definition)
@@ -1211,7 +1212,7 @@ void FuzzTest2() {
     TEST_NOTNULL(NULL);
   }
 
-  // clang-format off
+// clang-format off
   #ifdef FLATBUFFERS_TEST_VERBOSE
     TEST_OUTPUT_LINE("%dk schema tested with %dk of json\n",
                      static_cast<int>(schema.length() / 1024),
@@ -2216,10 +2217,10 @@ void FlexBuffersTest() {
   flexbuffers::Builder slb(512,
                            flexbuffers::BUILDER_FLAG_SHARE_KEYS_AND_STRINGS);
 
-  // Write the equivalent of:
-  // { vec: [ -100, "Fred", 4.0, false ], bar: [ 1, 2, 3 ], bar3: [ 1, 2, 3 ],
-  // foo: 100, bool: true, mymap: { foo: "Fred" } }
-  // clang-format off
+// Write the equivalent of:
+// { vec: [ -100, "Fred", 4.0, false ], bar: [ 1, 2, 3 ], bar3: [ 1, 2, 3 ],
+// foo: 100, bool: true, mymap: { foo: "Fred" } }
+// clang-format off
   #ifndef FLATBUFFERS_CPP98_STL
     // It's possible to do this without std::function support as well.
     slb.Map([&]() {
@@ -2360,7 +2361,7 @@ void TypeAliasesTest() {
       flatbuffers::numeric_limits<uint64_t>::max(), 2.3f, 2.3));
 
   auto p = builder.GetBufferPointer();
-  auto ta = flatbuffers::GetRoot<TypeAliasesT>(p);
+  auto ta = flatbuffers::GetRoot<TypeAliasesFlatbuffer>(p);
 
   TEST_EQ(ta->i8(), flatbuffers::numeric_limits<int8_t>::min());
   TEST_EQ(ta->u8(), flatbuffers::numeric_limits<uint8_t>::max());
@@ -2397,12 +2398,12 @@ void EndianSwapTest() {
 void UninitializedVectorTest() {
   flatbuffers::FlatBufferBuilder builder;
 
-  TestT *buf = nullptr;
+  TestFlatbuffer *buf = nullptr;
   auto vector_offset =
-      builder.CreateUninitializedVectorOfStructs<TestT>(2, &buf);
+      builder.CreateUninitializedVectorOfStructs<TestFlatbuffer>(2, &buf);
   TEST_NOTNULL(buf);
-  buf[0] = TestT(10, 20);
-  buf[1] = TestT(30, 40);
+  buf[0] = TestFlatbuffer(10, 20);
+  buf[1] = TestFlatbuffer(30, 40);
 
   auto required_name = builder.CreateString("myMonster");
   auto monster_builder = MonsterBuilder(builder);
@@ -2412,7 +2413,7 @@ void UninitializedVectorTest() {
   builder.Finish(monster_builder.Finish());
 
   auto p = builder.GetBufferPointer();
-  auto uvt = flatbuffers::GetRoot<MonsterT>(p);
+  auto uvt = flatbuffers::GetRoot<MonsterFlatbuffer>(p);
   TEST_NOTNULL(uvt);
   auto vec = uvt->test4();
   TEST_NOTNULL(vec);
@@ -2487,7 +2488,7 @@ void CreateSharedStringTest() {
 
   // Read the Monster back.
   const auto *monster =
-      flatbuffers::GetRoot<MonsterT>(builder.GetBufferPointer());
+      flatbuffers::GetRoot<MonsterFlatbuffer>(builder.GetBufferPointer());
   TEST_EQ_STR(monster->name()->c_str(), "two");
   const auto *testarrayofstring = monster->testarrayofstring();
   TEST_EQ(testarrayofstring->size(), flatbuffers::uoffset_t(7));

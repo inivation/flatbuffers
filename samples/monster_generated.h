@@ -9,15 +9,15 @@
 namespace MyGame {
 namespace Sample {
 
-struct Vec3T;
+struct Vec3Flatbuffer;
 
-struct MonsterT;
+struct MonsterFlatbuffer;
 struct Monster;
 
-struct WeaponT;
+struct WeaponFlatbuffer;
 struct Weapon;
 
-bool operator==(const Vec3T &lhs, const Vec3T &rhs);
+bool operator==(const Vec3Flatbuffer &lhs, const Vec3Flatbuffer &rhs);
 bool operator==(const Monster &lhs, const Monster &rhs);
 bool operator==(const Weapon &lhs, const Weapon &rhs);
 
@@ -94,7 +94,7 @@ template<typename T> struct EquipmentTraits {
   static const Equipment enum_value = Equipment_NONE;
 };
 
-template<> struct EquipmentTraits<WeaponT> {
+template<> struct EquipmentTraits<WeaponFlatbuffer> {
   static const Equipment enum_value = Equipment_Weapon;
 };
 
@@ -158,17 +158,17 @@ inline bool operator==(const EquipmentUnion &lhs, const EquipmentUnion &rhs) {
 bool VerifyEquipment(flatbuffers::Verifier &verifier, const void *obj, Equipment type);
 bool VerifyEquipmentVector(flatbuffers::Verifier &verifier, const flatbuffers::Vector<flatbuffers::Offset<void>> *values, const flatbuffers::Vector<uint8_t> *types);
 
-FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(4) Vec3T FLATBUFFERS_FINAL_CLASS {
+FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(4) Vec3Flatbuffer FLATBUFFERS_FINAL_CLASS {
  private:
   float x_;
   float y_;
   float z_;
 
  public:
-  Vec3T() {
-    memset(static_cast<void *>(this), 0, sizeof(Vec3T));
+  Vec3Flatbuffer() {
+    memset(static_cast<void *>(this), 0, sizeof(Vec3Flatbuffer));
   }
-  Vec3T(float _x, float _y, float _z)
+  Vec3Flatbuffer(float _x, float _y, float _z)
       : x_(flatbuffers::EndianScalar(_x)),
         y_(flatbuffers::EndianScalar(_y)),
         z_(flatbuffers::EndianScalar(_z)) {
@@ -192,9 +192,9 @@ FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(4) Vec3T FLATBUFFERS_FINAL_CLASS {
     flatbuffers::WriteScalar(&z_, _z);
   }
 };
-FLATBUFFERS_STRUCT_END(Vec3T, 12);
+FLATBUFFERS_STRUCT_END(Vec3Flatbuffer, 12);
 
-inline bool operator==(const Vec3T &lhs, const Vec3T &rhs) {
+inline bool operator==(const Vec3Flatbuffer &lhs, const Vec3Flatbuffer &rhs) {
   return
       (lhs.x() == rhs.x()) &&
       (lhs.y() == rhs.y()) &&
@@ -202,8 +202,8 @@ inline bool operator==(const Vec3T &lhs, const Vec3T &rhs) {
 }
 
 struct Monster : public flatbuffers::NativeTable {
-  typedef MonsterT TableType;
-  flatbuffers::unique_ptr<Vec3T> pos;
+  typedef MonsterFlatbuffer TableType;
+  flatbuffers::unique_ptr<Vec3Flatbuffer> pos;
   int16_t mana;
   int16_t hp;
   std::string name;
@@ -230,7 +230,7 @@ inline bool operator==(const Monster &lhs, const Monster &rhs) {
       (lhs.equipped == rhs.equipped);
 }
 
-struct MonsterT FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+struct MonsterFlatbuffer FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef Monster NativeTableType;
   static const flatbuffers::TypeTable *MiniReflectTypeTable() {
     return MonsterTypeTable();
@@ -246,11 +246,11 @@ struct MonsterT FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_EQUIPPED_TYPE = 20,
     VT_EQUIPPED = 22
   };
-  const Vec3T *pos() const {
-    return GetStruct<const Vec3T *>(VT_POS);
+  const Vec3Flatbuffer *pos() const {
+    return GetStruct<const Vec3Flatbuffer *>(VT_POS);
   }
-  Vec3T *mutable_pos() {
-    return GetStruct<Vec3T *>(VT_POS);
+  Vec3Flatbuffer *mutable_pos() {
+    return GetStruct<Vec3Flatbuffer *>(VT_POS);
   }
   int16_t mana() const {
     return GetField<int16_t>(VT_MANA, 150);
@@ -282,11 +282,11 @@ struct MonsterT FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   bool mutate_color(Color _color) {
     return SetField<int8_t>(VT_COLOR, static_cast<int8_t>(_color), 2);
   }
-  const flatbuffers::Vector<flatbuffers::Offset<WeaponT>> *weapons() const {
-    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<WeaponT>> *>(VT_WEAPONS);
+  const flatbuffers::Vector<flatbuffers::Offset<WeaponFlatbuffer>> *weapons() const {
+    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<WeaponFlatbuffer>> *>(VT_WEAPONS);
   }
-  flatbuffers::Vector<flatbuffers::Offset<WeaponT>> *mutable_weapons() {
-    return GetPointer<flatbuffers::Vector<flatbuffers::Offset<WeaponT>> *>(VT_WEAPONS);
+  flatbuffers::Vector<flatbuffers::Offset<WeaponFlatbuffer>> *mutable_weapons() {
+    return GetPointer<flatbuffers::Vector<flatbuffers::Offset<WeaponFlatbuffer>> *>(VT_WEAPONS);
   }
   Equipment equipped_type() const {
     return static_cast<Equipment>(GetField<uint8_t>(VT_EQUIPPED_TYPE, 0));
@@ -298,15 +298,15 @@ struct MonsterT FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     return GetPointer<const void *>(VT_EQUIPPED);
   }
   template<typename T> const T *equipped_as() const;
-  const WeaponT *equipped_as_Weapon() const {
-    return equipped_type() == Equipment_Weapon ? static_cast<const WeaponT *>(equipped()) : nullptr;
+  const WeaponFlatbuffer *equipped_as_Weapon() const {
+    return equipped_type() == Equipment_Weapon ? static_cast<const WeaponFlatbuffer *>(equipped()) : nullptr;
   }
   void *mutable_equipped() {
     return GetPointer<void *>(VT_EQUIPPED);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<Vec3T>(verifier, VT_POS) &&
+           VerifyField<Vec3Flatbuffer>(verifier, VT_POS) &&
            VerifyField<int16_t>(verifier, VT_MANA) &&
            VerifyField<int16_t>(verifier, VT_HP) &&
            VerifyOffset(verifier, VT_NAME) &&
@@ -324,65 +324,65 @@ struct MonsterT FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   Monster *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
   void UnPackTo(Monster *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static void UnPackToFrom(Monster *_o, const MonsterT *_fb, const flatbuffers::resolver_function_t *_resolver = nullptr);
-  static flatbuffers::Offset<MonsterT> Pack(flatbuffers::FlatBufferBuilder &_fbb, const Monster* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  static void UnPackToFrom(Monster *_o, const MonsterFlatbuffer *_fb, const flatbuffers::resolver_function_t *_resolver = nullptr);
+  static flatbuffers::Offset<MonsterFlatbuffer> Pack(flatbuffers::FlatBufferBuilder &_fbb, const Monster* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
-template<> inline const WeaponT *MonsterT::equipped_as<WeaponT>() const {
+template<> inline const WeaponFlatbuffer *MonsterFlatbuffer::equipped_as<WeaponFlatbuffer>() const {
   return equipped_as_Weapon();
 }
 
 struct MonsterBuilder {
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_pos(const Vec3T *pos) {
-    fbb_.AddStruct(MonsterT::VT_POS, pos);
+  void add_pos(const Vec3Flatbuffer *pos) {
+    fbb_.AddStruct(MonsterFlatbuffer::VT_POS, pos);
   }
   void add_mana(int16_t mana) {
-    fbb_.AddElement<int16_t>(MonsterT::VT_MANA, mana, 150);
+    fbb_.AddElement<int16_t>(MonsterFlatbuffer::VT_MANA, mana, 150);
   }
   void add_hp(int16_t hp) {
-    fbb_.AddElement<int16_t>(MonsterT::VT_HP, hp, 100);
+    fbb_.AddElement<int16_t>(MonsterFlatbuffer::VT_HP, hp, 100);
   }
   void add_name(flatbuffers::Offset<flatbuffers::String> name) {
-    fbb_.AddOffset(MonsterT::VT_NAME, name);
+    fbb_.AddOffset(MonsterFlatbuffer::VT_NAME, name);
   }
   void add_inventory(flatbuffers::Offset<flatbuffers::Vector<uint8_t>> inventory) {
-    fbb_.AddOffset(MonsterT::VT_INVENTORY, inventory);
+    fbb_.AddOffset(MonsterFlatbuffer::VT_INVENTORY, inventory);
   }
   void add_color(Color color) {
-    fbb_.AddElement<int8_t>(MonsterT::VT_COLOR, static_cast<int8_t>(color), 2);
+    fbb_.AddElement<int8_t>(MonsterFlatbuffer::VT_COLOR, static_cast<int8_t>(color), 2);
   }
-  void add_weapons(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<WeaponT>>> weapons) {
-    fbb_.AddOffset(MonsterT::VT_WEAPONS, weapons);
+  void add_weapons(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<WeaponFlatbuffer>>> weapons) {
+    fbb_.AddOffset(MonsterFlatbuffer::VT_WEAPONS, weapons);
   }
   void add_equipped_type(Equipment equipped_type) {
-    fbb_.AddElement<uint8_t>(MonsterT::VT_EQUIPPED_TYPE, static_cast<uint8_t>(equipped_type), 0);
+    fbb_.AddElement<uint8_t>(MonsterFlatbuffer::VT_EQUIPPED_TYPE, static_cast<uint8_t>(equipped_type), 0);
   }
   void add_equipped(flatbuffers::Offset<void> equipped) {
-    fbb_.AddOffset(MonsterT::VT_EQUIPPED, equipped);
+    fbb_.AddOffset(MonsterFlatbuffer::VT_EQUIPPED, equipped);
   }
   explicit MonsterBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
   MonsterBuilder &operator=(const MonsterBuilder &);
-  flatbuffers::Offset<MonsterT> Finish() {
+  flatbuffers::Offset<MonsterFlatbuffer> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<MonsterT>(end);
+    auto o = flatbuffers::Offset<MonsterFlatbuffer>(end);
     return o;
   }
 };
 
-inline flatbuffers::Offset<MonsterT> CreateMonster(
+inline flatbuffers::Offset<MonsterFlatbuffer> CreateMonster(
     flatbuffers::FlatBufferBuilder &_fbb,
-    const Vec3T *pos = 0,
+    const Vec3Flatbuffer *pos = 0,
     int16_t mana = 150,
     int16_t hp = 100,
     flatbuffers::Offset<flatbuffers::String> name = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> inventory = 0,
     Color color = Color_Blue,
-    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<WeaponT>>> weapons = 0,
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<WeaponFlatbuffer>>> weapons = 0,
     Equipment equipped_type = Equipment_NONE,
     flatbuffers::Offset<void> equipped = 0) {
   MonsterBuilder builder_(_fbb);
@@ -398,20 +398,20 @@ inline flatbuffers::Offset<MonsterT> CreateMonster(
   return builder_.Finish();
 }
 
-inline flatbuffers::Offset<MonsterT> CreateMonsterDirect(
+inline flatbuffers::Offset<MonsterFlatbuffer> CreateMonsterDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    const Vec3T *pos = 0,
+    const Vec3Flatbuffer *pos = 0,
     int16_t mana = 150,
     int16_t hp = 100,
     const char *name = nullptr,
     const std::vector<uint8_t> *inventory = nullptr,
     Color color = Color_Blue,
-    const std::vector<flatbuffers::Offset<WeaponT>> *weapons = nullptr,
+    const std::vector<flatbuffers::Offset<WeaponFlatbuffer>> *weapons = nullptr,
     Equipment equipped_type = Equipment_NONE,
     flatbuffers::Offset<void> equipped = 0) {
   auto name__ = name ? _fbb.CreateString(name) : 0;
   auto inventory__ = inventory ? _fbb.CreateVector<uint8_t>(*inventory) : 0;
-  auto weapons__ = weapons ? _fbb.CreateVector<flatbuffers::Offset<WeaponT>>(*weapons) : 0;
+  auto weapons__ = weapons ? _fbb.CreateVector<flatbuffers::Offset<WeaponFlatbuffer>>(*weapons) : 0;
   return MyGame::Sample::CreateMonster(
       _fbb,
       pos,
@@ -425,10 +425,10 @@ inline flatbuffers::Offset<MonsterT> CreateMonsterDirect(
       equipped);
 }
 
-flatbuffers::Offset<MonsterT> CreateMonster(flatbuffers::FlatBufferBuilder &_fbb, const Monster *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+flatbuffers::Offset<MonsterFlatbuffer> CreateMonster(flatbuffers::FlatBufferBuilder &_fbb, const Monster *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct Weapon : public flatbuffers::NativeTable {
-  typedef WeaponT TableType;
+  typedef WeaponFlatbuffer TableType;
   std::string name;
   int16_t damage;
   Weapon()
@@ -442,7 +442,7 @@ inline bool operator==(const Weapon &lhs, const Weapon &rhs) {
       (lhs.damage == rhs.damage);
 }
 
-struct WeaponT FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+struct WeaponFlatbuffer FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef Weapon NativeTableType;
   static const flatbuffers::TypeTable *MiniReflectTypeTable() {
     return WeaponTypeTable();
@@ -472,32 +472,32 @@ struct WeaponT FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   Weapon *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
   void UnPackTo(Weapon *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static void UnPackToFrom(Weapon *_o, const WeaponT *_fb, const flatbuffers::resolver_function_t *_resolver = nullptr);
-  static flatbuffers::Offset<WeaponT> Pack(flatbuffers::FlatBufferBuilder &_fbb, const Weapon* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+  static void UnPackToFrom(Weapon *_o, const WeaponFlatbuffer *_fb, const flatbuffers::resolver_function_t *_resolver = nullptr);
+  static flatbuffers::Offset<WeaponFlatbuffer> Pack(flatbuffers::FlatBufferBuilder &_fbb, const Weapon* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct WeaponBuilder {
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_name(flatbuffers::Offset<flatbuffers::String> name) {
-    fbb_.AddOffset(WeaponT::VT_NAME, name);
+    fbb_.AddOffset(WeaponFlatbuffer::VT_NAME, name);
   }
   void add_damage(int16_t damage) {
-    fbb_.AddElement<int16_t>(WeaponT::VT_DAMAGE, damage, 0);
+    fbb_.AddElement<int16_t>(WeaponFlatbuffer::VT_DAMAGE, damage, 0);
   }
   explicit WeaponBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
   WeaponBuilder &operator=(const WeaponBuilder &);
-  flatbuffers::Offset<WeaponT> Finish() {
+  flatbuffers::Offset<WeaponFlatbuffer> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<WeaponT>(end);
+    auto o = flatbuffers::Offset<WeaponFlatbuffer>(end);
     return o;
   }
 };
 
-inline flatbuffers::Offset<WeaponT> CreateWeapon(
+inline flatbuffers::Offset<WeaponFlatbuffer> CreateWeapon(
     flatbuffers::FlatBufferBuilder &_fbb,
     flatbuffers::Offset<flatbuffers::String> name = 0,
     int16_t damage = 0) {
@@ -507,7 +507,7 @@ inline flatbuffers::Offset<WeaponT> CreateWeapon(
   return builder_.Finish();
 }
 
-inline flatbuffers::Offset<WeaponT> CreateWeaponDirect(
+inline flatbuffers::Offset<WeaponFlatbuffer> CreateWeaponDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     const char *name = nullptr,
     int16_t damage = 0) {
@@ -518,25 +518,25 @@ inline flatbuffers::Offset<WeaponT> CreateWeaponDirect(
       damage);
 }
 
-flatbuffers::Offset<WeaponT> CreateWeapon(flatbuffers::FlatBufferBuilder &_fbb, const Weapon *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+flatbuffers::Offset<WeaponFlatbuffer> CreateWeapon(flatbuffers::FlatBufferBuilder &_fbb, const Weapon *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-inline Monster *MonsterT::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+inline Monster *MonsterFlatbuffer::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
   auto _o = new Monster();
   UnPackTo(_o, _resolver);
   return _o;
 }
 
-inline void MonsterT::UnPackTo(Monster *_o, const flatbuffers::resolver_function_t *_resolver) const {
+inline void MonsterFlatbuffer::UnPackTo(Monster *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   UnPackToFrom(_o, this, _resolver);
 }
 
-inline void MonsterT::UnPackToFrom(Monster *_o, const MonsterT *_fb, const flatbuffers::resolver_function_t *_resolver) {
+inline void MonsterFlatbuffer::UnPackToFrom(Monster *_o, const MonsterFlatbuffer *_fb, const flatbuffers::resolver_function_t *_resolver) {
   (void)_o;
   (void)_fb;
   (void)_resolver;
-  { auto _e = _fb->pos(); if (_e) _o->pos = flatbuffers::unique_ptr<Vec3T>(new Vec3T(*_e)); };
+  { auto _e = _fb->pos(); if (_e) _o->pos = flatbuffers::unique_ptr<Vec3Flatbuffer>(new Vec3Flatbuffer(*_e)); };
   { auto _e = _fb->mana(); _o->mana = _e; };
   { auto _e = _fb->hp(); _o->hp = _e; };
   { auto _e = _fb->name(); if (_e) _o->name = _e->str(); };
@@ -547,11 +547,11 @@ inline void MonsterT::UnPackToFrom(Monster *_o, const MonsterT *_fb, const flatb
   { auto _e = _fb->equipped(); if (_e) _o->equipped.value = EquipmentUnion::UnPack(_e, _fb->equipped_type(), _resolver); };
 }
 
-inline flatbuffers::Offset<MonsterT> MonsterT::Pack(flatbuffers::FlatBufferBuilder &_fbb, const Monster* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline flatbuffers::Offset<MonsterFlatbuffer> MonsterFlatbuffer::Pack(flatbuffers::FlatBufferBuilder &_fbb, const Monster* _o, const flatbuffers::rehasher_function_t *_rehasher) {
   return CreateMonster(_fbb, _o, _rehasher);
 }
 
-inline flatbuffers::Offset<MonsterT> CreateMonster(flatbuffers::FlatBufferBuilder &_fbb, const Monster *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline flatbuffers::Offset<MonsterFlatbuffer> CreateMonster(flatbuffers::FlatBufferBuilder &_fbb, const Monster *_o, const flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const Monster* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
@@ -561,7 +561,7 @@ inline flatbuffers::Offset<MonsterT> CreateMonster(flatbuffers::FlatBufferBuilde
   auto _name = _o->name.empty() ? 0 : _fbb.CreateString(_o->name);
   auto _inventory = _o->inventory.size() ? _fbb.CreateVector(_o->inventory) : 0;
   auto _color = _o->color;
-  auto _weapons = _o->weapons.size() ? _fbb.CreateVector<flatbuffers::Offset<WeaponT>> (_o->weapons.size(), [](size_t i, _VectorArgs *__va) { return CreateWeapon(*__va->__fbb, __va->__o->weapons[i].get(), __va->__rehasher); }, &_va ) : 0;
+  auto _weapons = _o->weapons.size() ? _fbb.CreateVector<flatbuffers::Offset<WeaponFlatbuffer>> (_o->weapons.size(), [](size_t i, _VectorArgs *__va) { return CreateWeapon(*__va->__fbb, __va->__o->weapons[i].get(), __va->__rehasher); }, &_va ) : 0;
   auto _equipped_type = _o->equipped.type;
   auto _equipped = _o->equipped.Pack(_fbb);
   return MyGame::Sample::CreateMonster(
@@ -577,19 +577,19 @@ inline flatbuffers::Offset<MonsterT> CreateMonster(flatbuffers::FlatBufferBuilde
       _equipped);
 }
 
-inline Weapon *WeaponT::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+inline Weapon *WeaponFlatbuffer::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
   auto _o = new Weapon();
   UnPackTo(_o, _resolver);
   return _o;
 }
 
-inline void WeaponT::UnPackTo(Weapon *_o, const flatbuffers::resolver_function_t *_resolver) const {
+inline void WeaponFlatbuffer::UnPackTo(Weapon *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
   UnPackToFrom(_o, this, _resolver);
 }
 
-inline void WeaponT::UnPackToFrom(Weapon *_o, const WeaponT *_fb, const flatbuffers::resolver_function_t *_resolver) {
+inline void WeaponFlatbuffer::UnPackToFrom(Weapon *_o, const WeaponFlatbuffer *_fb, const flatbuffers::resolver_function_t *_resolver) {
   (void)_o;
   (void)_fb;
   (void)_resolver;
@@ -597,11 +597,11 @@ inline void WeaponT::UnPackToFrom(Weapon *_o, const WeaponT *_fb, const flatbuff
   { auto _e = _fb->damage(); _o->damage = _e; };
 }
 
-inline flatbuffers::Offset<WeaponT> WeaponT::Pack(flatbuffers::FlatBufferBuilder &_fbb, const Weapon* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline flatbuffers::Offset<WeaponFlatbuffer> WeaponFlatbuffer::Pack(flatbuffers::FlatBufferBuilder &_fbb, const Weapon* _o, const flatbuffers::rehasher_function_t *_rehasher) {
   return CreateWeapon(_fbb, _o, _rehasher);
 }
 
-inline flatbuffers::Offset<WeaponT> CreateWeapon(flatbuffers::FlatBufferBuilder &_fbb, const Weapon *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+inline flatbuffers::Offset<WeaponFlatbuffer> CreateWeapon(flatbuffers::FlatBufferBuilder &_fbb, const Weapon *_o, const flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const Weapon* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
@@ -619,7 +619,7 @@ inline bool VerifyEquipment(flatbuffers::Verifier &verifier, const void *obj, Eq
       return true;
     }
     case Equipment_Weapon: {
-      auto ptr = reinterpret_cast<const WeaponT *>(obj);
+      auto ptr = reinterpret_cast<const WeaponFlatbuffer *>(obj);
       return verifier.VerifyTable(ptr);
     }
     default: return false;
@@ -641,7 +641,7 @@ inline bool VerifyEquipmentVector(flatbuffers::Verifier &verifier, const flatbuf
 inline void *EquipmentUnion::UnPack(const void *obj, Equipment type, const flatbuffers::resolver_function_t *resolver) {
   switch (type) {
     case Equipment_Weapon: {
-      auto ptr = reinterpret_cast<const WeaponT *>(obj);
+      auto ptr = reinterpret_cast<const WeaponFlatbuffer *>(obj);
       return ptr->UnPack(resolver);
     }
     default: return nullptr;
@@ -790,37 +790,37 @@ inline const flatbuffers::TypeTable *WeaponTypeTable() {
   return &tt;
 }
 
-inline const MyGame::Sample::MonsterT *GetMonster(const void *buf) {
-  return flatbuffers::GetRoot<MyGame::Sample::MonsterT>(buf);
+inline const MyGame::Sample::MonsterFlatbuffer *GetMonster(const void *buf) {
+  return flatbuffers::GetRoot<MyGame::Sample::MonsterFlatbuffer>(buf);
 }
 
-inline const MyGame::Sample::MonsterT *GetSizePrefixedMonster(const void *buf) {
-  return flatbuffers::GetSizePrefixedRoot<MyGame::Sample::MonsterT>(buf);
+inline const MyGame::Sample::MonsterFlatbuffer *GetSizePrefixedMonster(const void *buf) {
+  return flatbuffers::GetSizePrefixedRoot<MyGame::Sample::MonsterFlatbuffer>(buf);
 }
 
-inline MonsterT *GetMutableMonster(void *buf) {
-  return flatbuffers::GetMutableRoot<MonsterT>(buf);
+inline MonsterFlatbuffer *GetMutableMonster(void *buf) {
+  return flatbuffers::GetMutableRoot<MonsterFlatbuffer>(buf);
 }
 
 inline bool VerifyMonsterBuffer(
     flatbuffers::Verifier &verifier) {
-  return verifier.VerifyBuffer<MyGame::Sample::MonsterT>(nullptr);
+  return verifier.VerifyBuffer<MyGame::Sample::MonsterFlatbuffer>(nullptr);
 }
 
 inline bool VerifySizePrefixedMonsterBuffer(
     flatbuffers::Verifier &verifier) {
-  return verifier.VerifySizePrefixedBuffer<MyGame::Sample::MonsterT>(nullptr);
+  return verifier.VerifySizePrefixedBuffer<MyGame::Sample::MonsterFlatbuffer>(nullptr);
 }
 
 inline void FinishMonsterBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
-    flatbuffers::Offset<MyGame::Sample::MonsterT> root) {
+    flatbuffers::Offset<MyGame::Sample::MonsterFlatbuffer> root) {
   fbb.Finish(root);
 }
 
 inline void FinishSizePrefixedMonsterBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
-    flatbuffers::Offset<MyGame::Sample::MonsterT> root) {
+    flatbuffers::Offset<MyGame::Sample::MonsterFlatbuffer> root) {
   fbb.FinishSizePrefixed(root);
 }
 

@@ -14,7 +14,7 @@ struct OwnedAllocator : public flatbuffers::DefaultAllocator {};
 
 class TestHeapBuilder : public flatbuffers::FlatBufferBuilder {
  private:
-// clang-format off
+  // clang-format off
   #if !defined(FLATBUFFERS_CPP98_STL)
   TestHeapBuilder(const TestHeapBuilder &);
   TestHeapBuilder &operator=(const TestHeapBuilder &);
@@ -25,7 +25,7 @@ class TestHeapBuilder : public flatbuffers::FlatBufferBuilder {
   TestHeapBuilder()
       : flatbuffers::FlatBufferBuilder(2048, new OwnedAllocator(), true) {}
 
-// clang-format off
+  // clang-format off
   #if !defined(FLATBUFFERS_CPP98_STL)
   // clang-format on
   TestHeapBuilder(TestHeapBuilder &&other)
@@ -35,7 +35,7 @@ class TestHeapBuilder : public flatbuffers::FlatBufferBuilder {
     FlatBufferBuilder::operator=(std::move(other));
     return *this;
   }
-// clang-format off
+  // clang-format off
   #endif  // !defined(FLATBUFFERS_CPP98_STL)
   // clang-format on
 };
@@ -61,7 +61,7 @@ struct GrpcLikeMessageBuilder : private AllocatorMember,
     Swap(other);
   }
 
-// clang-format off
+  // clang-format off
   #if !defined(FLATBUFFERS_CPP98_STL)
   // clang-format on
   GrpcLikeMessageBuilder &operator=(GrpcLikeMessageBuilder &&other) {
@@ -70,7 +70,7 @@ struct GrpcLikeMessageBuilder : private AllocatorMember,
     Swap(temp);
     return *this;
   }
-// clang-format off
+  // clang-format off
   #endif  // !defined(FLATBUFFERS_CPP98_STL)
   // clang-format on
 
@@ -86,13 +86,13 @@ struct GrpcLikeMessageBuilder : private AllocatorMember,
   }
 };
 
-flatbuffers::Offset<MonsterT> populate1(
+flatbuffers::Offset<MonsterFlatbuffer> populate1(
     flatbuffers::FlatBufferBuilder &builder) {
   auto name_offset = builder.CreateString(m1_name);
   return CreateMonster(builder, nullptr, 0, 0, name_offset, 0, m1_color);
 }
 
-flatbuffers::Offset<MonsterT> populate2(
+flatbuffers::Offset<MonsterFlatbuffer> populate2(
     flatbuffers::FlatBufferBuilder &builder) {
   auto name_offset = builder.CreateString(m2_name);
   return CreateMonster(builder, nullptr, 0, 0, name_offset, 0, m2_color);
@@ -120,14 +120,16 @@ void free_raw(flatbuffers::FlatBufferBuilder &, uint8_t *buf) {
 
 bool verify(const flatbuffers::DetachedBuffer &buf,
             const std::string &expected_name, Color color) {
-  const MonsterT *monster = flatbuffers::GetRoot<MonsterT>(buf.data());
+  const MonsterFlatbuffer *monster =
+      flatbuffers::GetRoot<MonsterFlatbuffer>(buf.data());
   return (monster->name()->str() == expected_name) &&
          (monster->color() == color);
 }
 
 bool verify(const uint8_t *buf, size_t offset, const std::string &expected_name,
             Color color) {
-  const MonsterT *monster = flatbuffers::GetRoot<MonsterT>(buf + offset);
+  const MonsterFlatbuffer *monster =
+      flatbuffers::GetRoot<MonsterFlatbuffer>(buf + offset);
   return (monster->name()->str() == expected_name) &&
          (monster->color() == color);
 }

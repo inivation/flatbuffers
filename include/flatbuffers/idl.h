@@ -500,7 +500,7 @@ struct IDLOptions {
         gen_nullable(false),
         gen_generated(false),
         object_suffix(""),
-        internal_class_suffix("T"),
+        internal_class_suffix("Flatbuffer"),
         union_value_namespacing(true),
         allow_non_utf8(false),
         natural_utf8(false),
