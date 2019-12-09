@@ -229,8 +229,10 @@ class CppGenerator : public BaseGenerator {
       const auto &struct_def = **it;
       if (!struct_def.generated) {
         SetNameSpace(struct_def.defined_namespace);
-        code_ += "struct " + Name(struct_def) +
-                 parser_.opts.internal_class_suffix + ";";
+        code_ += struct_def.fixed
+                     ? "struct " + Name(struct_def) + ";"
+                     : "struct " + Name(struct_def) +
+                           parser_.opts.internal_class_suffix + ";";
         if (parser_.opts.generate_object_based_api) {
           auto nativeName =
               NativeName(Name(struct_def), &struct_def, parser_.opts);
@@ -531,8 +533,9 @@ class CppGenerator : public BaseGenerator {
         return "flatbuffers::Vector<" + type_name + ">";
       }
       case BASE_TYPE_STRUCT: {
-        return WrapInNameSpace(*type.struct_def) +
-               parser_.opts.internal_class_suffix;
+        return type.struct_def->fixed ? WrapInNameSpace(*type.struct_def)
+                                      : WrapInNameSpace(*type.struct_def) +
+                                            parser_.opts.internal_class_suffix;
       }
       case BASE_TYPE_UNION:
       // fall through
@@ -574,7 +577,7 @@ class CppGenerator : public BaseGenerator {
   static std::string NativeName(const std::string &name, const StructDef *sd,
                                 const IDLOptions &opts) {
     return sd && !sd->fixed ? opts.object_prefix + name + opts.object_suffix
-                            : name + opts.internal_class_suffix;
+                            : name;
   }
 
   const std::string FieldStringLookup(const FieldDef *field,
@@ -660,10 +663,7 @@ class CppGenerator : public BaseGenerator {
           return NativeVector(&field) + "<" + type_name + "," +
                  native_custom_alloc->constant + "<" + type_name + ">>";
         } else
-          return (type.struct_def && type.struct_def->name == type_name)
-                     ? NativeVector(&field) + "<" + type_name +
-                           parser_.opts.internal_class_suffix + ">"
-                     : NativeVector(&field) + "<" + type_name + ">";
+          return NativeVector(&field) + "<" + type_name + ">";
       }
       case BASE_TYPE_STRUCT: {
         auto type_name = WrapInNameSpace(*type.struct_def);
@@ -671,10 +671,9 @@ class CppGenerator : public BaseGenerator {
           auto native_type = type.struct_def->attributes.Lookup("native_type");
           if (native_type) { type_name = native_type->constant; }
           if (invector || field.native_inline) {
-            return type_name + parser_.opts.internal_class_suffix;
+            return type_name;
           } else {
-            return GenTypeNativePtr(
-                type_name + parser_.opts.internal_class_suffix, &field, false);
+            return GenTypeNativePtr(type_name, &field, false);
           }
         } else {
           type_name = NativeName(type_name, type.struct_def, parser_.opts);
@@ -1532,8 +1531,7 @@ class CppGenerator : public BaseGenerator {
       const auto vtype = field.value.type.VectorType();
       std::string type;
       if (IsStruct(vtype)) {
-        type = WrapInNameSpace(*vtype.struct_def) +
-               parser_.opts.internal_class_suffix;
+        type = WrapInNameSpace(*vtype.struct_def);
       } else {
         type = GenTypeWire(vtype, "", false);
       }
@@ -1650,8 +1648,8 @@ class CppGenerator : public BaseGenerator {
     code_.SetValue("CMP_RHS", cmp_rhs);
     code_ += "";
     code_ +=
-        "inline bool operator==(const {{NATIVE_NAME_SUFF}} &{{CMP_LHS}}, const "
-        "{{NATIVE_NAME_SUFF}} &{{CMP_RHS}}) {";
+        "inline bool operator==(const {{NATIVE_NAME}} &{{CMP_LHS}}, const "
+        "{{NATIVE_NAME}} &{{CMP_RHS}}) {";
     code_ += "{{CMP_OP}}";
     code_ += "}";
   }
@@ -1675,14 +1673,11 @@ class CppGenerator : public BaseGenerator {
     const auto native_name =
         NativeName(Name(struct_def), &struct_def, parser_.opts);
     code_.SetValue("STRUCT_NAME", Name(struct_def));
-    code_.SetValue("STRUCT_NAME_SUFF",
-                   Name(struct_def) + parser_.opts.internal_class_suffix);
     code_.SetValue("NATIVE_NAME", native_name);
-    code_.SetValue("NATIVE_NAME_SUFF", native_name);
 
     // Generate a C++ object that can hold an unpacked version of this table.
     code_ += "struct {{NATIVE_NAME}} : public flatbuffers::NativeTable {";
-    code_ += "  typedef {{STRUCT_NAME_SUFF}} TableType;";
+    code_ += "  typedef {{STRUCT_NAME}} TableType;";
     GenFullyQualifiedNameGetter(struct_def, native_name);
     for (auto it = struct_def.fields.vec.begin();
          it != struct_def.fields.vec.end(); ++it) {
@@ -1763,8 +1758,7 @@ class CppGenerator : public BaseGenerator {
   void GenKeyFieldMethods(const FieldDef &field) {
     FLATBUFFERS_ASSERT(field.key);
     const bool is_string = (field.value.type.base_type == BASE_TYPE_STRING);
-
-    code_ += "  bool KeyCompareLessThan(const {{STRUCT_NAME_SUFF}} *o) const {";
+    code_ += "  bool KeyCompareLessThan(const {{STRUCT_NAME}} *o) const {";
     if (is_string) {
       // use operator< of flatbuffers::String
       code_ += "    return *{{FIELD_NAME}}() < *o->{{FIELD_NAME}}();";
@@ -1994,7 +1988,11 @@ class CppGenerator : public BaseGenerator {
       }
 
       // Generate a comparison function for this field if it is a key.
-      if (field.key) { GenKeyFieldMethods(field); }
+      if (field.key) {
+        code_.SetValue("STRUCT_NAME",
+                       Name(struct_def) + parser_.opts.internal_class_suffix);
+        GenKeyFieldMethods(field);
+      }
     }
 
     // Generate a verifier function that can check a buffer from an untrusted
@@ -2075,8 +2073,6 @@ class CppGenerator : public BaseGenerator {
 
   void GenBuilders(const StructDef &struct_def) {
     code_.SetValue("STRUCT_NAME", Name(struct_def));
-    code_.SetValue("STRUCT_NAME_SUFF",
-                   Name(struct_def) + parser_.opts.internal_class_suffix);
 
     // Generate a builder struct:
     code_ += "struct {{STRUCT_NAME}}Builder {";
@@ -2225,8 +2221,7 @@ class CppGenerator : public BaseGenerator {
             code_ += "  auto {{FIELD_NAME}}__ = {{FIELD_NAME}} ? \\";
             const auto vtype = field.value.type.VectorType();
             if (IsStruct(vtype)) {
-              const auto type = WrapInNameSpace(*vtype.struct_def) +
-                                parser_.opts.internal_class_suffix;
+              const auto type = WrapInNameSpace(*vtype.struct_def);
               code_ += "_fbb.CreateVectorOfStructs<" + type + ">\\";
             } else {
               const auto type = GenTypeWire(vtype, "", false);
@@ -2286,10 +2281,8 @@ class CppGenerator : public BaseGenerator {
           } else if (invector || afield.native_inline) {
             return assign + " = *" + val;
           } else {
-            const auto ptype = GenTypeNativePtr(
-                name + parser_.opts.internal_class_suffix, &afield, true);
-            return assign + " = " + ptype + "(new " + name +
-                   parser_.opts.internal_class_suffix + "(*" + val + "))";
+            const auto ptype = GenTypeNativePtr(name, &afield, true);
+            return assign + " = " + ptype + "(new " + name + "(*" + val + "))";
           }
         } else {
           if (afield.native_inline) {
@@ -2805,12 +2798,10 @@ class CppGenerator : public BaseGenerator {
     GenComment(struct_def.doc_comment);
     code_.SetValue("ALIGN", NumToString(struct_def.minalign));
     code_.SetValue("STRUCT_NAME", Name(struct_def));
-    code_.SetValue("STRUCT_NAME_SUFF",
-                   Name(struct_def) + parser_.opts.internal_class_suffix);
 
     code_ +=
         "FLATBUFFERS_MANUALLY_ALIGNED_STRUCT({{ALIGN}}) "
-        "{{STRUCT_NAME_SUFF}} FLATBUFFERS_FINAL_CLASS {";
+        "{{STRUCT_NAME}} FLATBUFFERS_FINAL_CLASS {";
     code_ += " private:";
 
     int padding_id = 0;
@@ -2835,10 +2826,10 @@ class CppGenerator : public BaseGenerator {
     GenFullyQualifiedNameGetter(struct_def, Name(struct_def));
 
     // Generate a default constructor.
-    code_ += "  {{STRUCT_NAME_SUFF}}() {";
+    code_ += "  {{STRUCT_NAME}}() {";
     code_ +=
         "    memset(static_cast<void *>(this), 0, "
-        "sizeof({{STRUCT_NAME_SUFF}}));";
+        "sizeof({{STRUCT_NAME}}));";
     code_ += "  }";
 
     // Generate a constructor that takes all fields as arguments.
@@ -2874,7 +2865,7 @@ class CppGenerator : public BaseGenerator {
     if (!arg_list.empty()) {
       code_.SetValue("ARG_LIST", arg_list);
       code_.SetValue("INIT_LIST", init_list);
-      code_ += "  {{STRUCT_NAME_SUFF}}({{ARG_LIST}})";
+      code_ += "  {{STRUCT_NAME}}({{ARG_LIST}})";
       code_ += "      : {{INIT_LIST}} {";
       padding_id = 0;
       for (auto it = struct_def.fields.vec.begin();
@@ -2940,8 +2931,7 @@ class CppGenerator : public BaseGenerator {
     code_ += "};";
 
     code_.SetValue("STRUCT_BYTE_SIZE", NumToString(struct_def.bytesize));
-    code_ +=
-        "FLATBUFFERS_STRUCT_END({{STRUCT_NAME_SUFF}}, {{STRUCT_BYTE_SIZE}});";
+    code_ += "FLATBUFFERS_STRUCT_END({{STRUCT_NAME}}, {{STRUCT_BYTE_SIZE}});";
     if (parser_.opts.gen_compare) GenCompareOperator(struct_def, "()");
     code_ += "";
   }

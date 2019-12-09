@@ -9,7 +9,7 @@
 namespace MyGame {
 namespace Sample {
 
-struct Vec3Flatbuffer;
+struct Vec3;
 
 struct MonsterFlatbuffer;
 struct Monster;
@@ -17,7 +17,7 @@ struct Monster;
 struct WeaponFlatbuffer;
 struct Weapon;
 
-bool operator==(const Vec3Flatbuffer &lhs, const Vec3Flatbuffer &rhs);
+bool operator==(const Vec3 &lhs, const Vec3 &rhs);
 bool operator==(const Monster &lhs, const Monster &rhs);
 bool operator==(const Weapon &lhs, const Weapon &rhs);
 
@@ -158,17 +158,17 @@ inline bool operator==(const EquipmentUnion &lhs, const EquipmentUnion &rhs) {
 bool VerifyEquipment(flatbuffers::Verifier &verifier, const void *obj, Equipment type);
 bool VerifyEquipmentVector(flatbuffers::Verifier &verifier, const flatbuffers::Vector<flatbuffers::Offset<void>> *values, const flatbuffers::Vector<uint8_t> *types);
 
-FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(4) Vec3Flatbuffer FLATBUFFERS_FINAL_CLASS {
+FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(4) Vec3 FLATBUFFERS_FINAL_CLASS {
  private:
   float x_;
   float y_;
   float z_;
 
  public:
-  Vec3Flatbuffer() {
-    memset(static_cast<void *>(this), 0, sizeof(Vec3Flatbuffer));
+  Vec3() {
+    memset(static_cast<void *>(this), 0, sizeof(Vec3));
   }
-  Vec3Flatbuffer(float _x, float _y, float _z)
+  Vec3(float _x, float _y, float _z)
       : x_(flatbuffers::EndianScalar(_x)),
         y_(flatbuffers::EndianScalar(_y)),
         z_(flatbuffers::EndianScalar(_z)) {
@@ -192,9 +192,9 @@ FLATBUFFERS_MANUALLY_ALIGNED_STRUCT(4) Vec3Flatbuffer FLATBUFFERS_FINAL_CLASS {
     flatbuffers::WriteScalar(&z_, _z);
   }
 };
-FLATBUFFERS_STRUCT_END(Vec3Flatbuffer, 12);
+FLATBUFFERS_STRUCT_END(Vec3, 12);
 
-inline bool operator==(const Vec3Flatbuffer &lhs, const Vec3Flatbuffer &rhs) {
+inline bool operator==(const Vec3 &lhs, const Vec3 &rhs) {
   return
       (lhs.x() == rhs.x()) &&
       (lhs.y() == rhs.y()) &&
@@ -202,8 +202,8 @@ inline bool operator==(const Vec3Flatbuffer &lhs, const Vec3Flatbuffer &rhs) {
 }
 
 struct Monster : public flatbuffers::NativeTable {
-  typedef MonsterFlatbuffer TableType;
-  flatbuffers::unique_ptr<Vec3Flatbuffer> pos;
+  typedef Monster TableType;
+  flatbuffers::unique_ptr<Vec3> pos;
   int16_t mana;
   int16_t hp;
   std::string name;
@@ -246,11 +246,11 @@ struct MonsterFlatbuffer FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_EQUIPPED_TYPE = 20,
     VT_EQUIPPED = 22
   };
-  const Vec3Flatbuffer *pos() const {
-    return GetStruct<const Vec3Flatbuffer *>(VT_POS);
+  const Vec3 *pos() const {
+    return GetStruct<const Vec3 *>(VT_POS);
   }
-  Vec3Flatbuffer *mutable_pos() {
-    return GetStruct<Vec3Flatbuffer *>(VT_POS);
+  Vec3 *mutable_pos() {
+    return GetStruct<Vec3 *>(VT_POS);
   }
   int16_t mana() const {
     return GetField<int16_t>(VT_MANA, 150);
@@ -306,7 +306,7 @@ struct MonsterFlatbuffer FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyField<Vec3Flatbuffer>(verifier, VT_POS) &&
+           VerifyField<Vec3>(verifier, VT_POS) &&
            VerifyField<int16_t>(verifier, VT_MANA) &&
            VerifyField<int16_t>(verifier, VT_HP) &&
            VerifyOffset(verifier, VT_NAME) &&
@@ -335,7 +335,7 @@ template<> inline const WeaponFlatbuffer *MonsterFlatbuffer::equipped_as<WeaponF
 struct MonsterBuilder {
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_pos(const Vec3Flatbuffer *pos) {
+  void add_pos(const Vec3 *pos) {
     fbb_.AddStruct(MonsterFlatbuffer::VT_POS, pos);
   }
   void add_mana(int16_t mana) {
@@ -376,7 +376,7 @@ struct MonsterBuilder {
 
 inline flatbuffers::Offset<MonsterFlatbuffer> CreateMonster(
     flatbuffers::FlatBufferBuilder &_fbb,
-    const Vec3Flatbuffer *pos = 0,
+    const Vec3 *pos = 0,
     int16_t mana = 150,
     int16_t hp = 100,
     flatbuffers::Offset<flatbuffers::String> name = 0,
@@ -400,7 +400,7 @@ inline flatbuffers::Offset<MonsterFlatbuffer> CreateMonster(
 
 inline flatbuffers::Offset<MonsterFlatbuffer> CreateMonsterDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    const Vec3Flatbuffer *pos = 0,
+    const Vec3 *pos = 0,
     int16_t mana = 150,
     int16_t hp = 100,
     const char *name = nullptr,
@@ -428,7 +428,7 @@ inline flatbuffers::Offset<MonsterFlatbuffer> CreateMonsterDirect(
 flatbuffers::Offset<MonsterFlatbuffer> CreateMonster(flatbuffers::FlatBufferBuilder &_fbb, const Monster *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct Weapon : public flatbuffers::NativeTable {
-  typedef WeaponFlatbuffer TableType;
+  typedef Weapon TableType;
   std::string name;
   int16_t damage;
   Weapon()
@@ -536,7 +536,7 @@ inline void MonsterFlatbuffer::UnPackToFrom(Monster *_o, const MonsterFlatbuffer
   (void)_o;
   (void)_fb;
   (void)_resolver;
-  { auto _e = _fb->pos(); if (_e) _o->pos = flatbuffers::unique_ptr<Vec3Flatbuffer>(new Vec3Flatbuffer(*_e)); };
+  { auto _e = _fb->pos(); if (_e) _o->pos = flatbuffers::unique_ptr<Vec3>(new Vec3(*_e)); };
   { auto _e = _fb->mana(); _o->mana = _e; };
   { auto _e = _fb->hp(); _o->hp = _e; };
   { auto _e = _fb->name(); if (_e) _o->name = _e->str(); };

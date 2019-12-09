@@ -42,7 +42,7 @@ int main(int /*argc*/, const char * /*argv*/[]) {
   auto weapons = builder.CreateVector(weapons_vector);
 
   // Second, serialize the rest of the objects needed by the Monster.
-  auto position = Vec3Flatbuffer(1.0f, 2.0f, 3.0f);
+  auto position = Vec3(1.0f, 2.0f, 3.0f);
 
   auto name = builder.CreateString("MyMonster");
 

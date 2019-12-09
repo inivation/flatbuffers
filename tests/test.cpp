@@ -63,7 +63,7 @@ std::string test_data_path =
 flatbuffers::DetachedBuffer CreateFlatBufferTest(std::string &buffer) {
   flatbuffers::FlatBufferBuilder builder;
 
-  auto vec = Vec3Flatbuffer(1, 2, 3, 0, Color_Red, TestFlatbuffer(10, 20));
+  auto vec = Vec3(1, 2, 3, 0, Color_Red, Test(10, 20));
 
   auto name = builder.CreateString("MyMonster");
 
@@ -76,14 +76,14 @@ flatbuffers::DetachedBuffer CreateFlatBufferTest(std::string &buffer) {
   //                                                              10, &inv_buf);
   // memcpy(inv_buf, inv_data, 10);
 
-  TestFlatbuffer tests[] = { TestFlatbuffer(10, 20), TestFlatbuffer(30, 40) };
+  Test tests[] = { Test(10, 20), Test(30, 40) };
   auto testv = builder.CreateVectorOfStructs(tests, 2);
 
 // clang-format off
   #ifndef FLATBUFFERS_CPP98_STL
     // Create a vector of structures from a lambda.
-    auto testv2 = builder.CreateVectorOfStructs<TestFlatbuffer>(
-          2, [&](size_t i, TestFlatbuffer* s) -> void {
+    auto testv2 = builder.CreateVectorOfStructs<Test>(
+          2, [&](size_t i, Test* s) -> void {
             *s = tests[i];
           });
   #else
@@ -134,11 +134,11 @@ flatbuffers::DetachedBuffer CreateFlatBufferTest(std::string &buffer) {
 
   // Create an array of sorted structs,
   // can be used with binary search when read:
-  std::vector<AbilityFlatbuffer> abilities;
-  abilities.push_back(AbilityFlatbuffer(4, 40));
-  abilities.push_back(AbilityFlatbuffer(3, 30));
-  abilities.push_back(AbilityFlatbuffer(2, 20));
-  abilities.push_back(AbilityFlatbuffer(1, 10));
+  std::vector<Ability> abilities;
+  abilities.push_back(Ability(4, 40));
+  abilities.push_back(Ability(3, 30));
+  abilities.push_back(Ability(2, 20));
+  abilities.push_back(Ability(1, 10));
   auto vecofstructs = builder.CreateVectorOfSortedStructs(&abilities);
 
   // Create a nested FlatBuffer.
@@ -325,7 +325,7 @@ void AccessFlatBufferTest(const uint8_t *flatbuf, size_t length,
       TEST_EQ(true, (left->KeyCompareLessThan(right)));
     }
     TEST_NOTNULL(vecofstructs->LookupByKey(3));
-    TEST_EQ(static_cast<const AbilityFlatbuffer *>(nullptr),
+    TEST_EQ(static_cast<const Ability *>(nullptr),
             vecofstructs->LookupByKey(5));
   }
 
@@ -358,10 +358,10 @@ void AccessFlatBufferTest(const uint8_t *flatbuf, size_t length,
   // Since Flatbuffers uses explicit mechanisms to override the default
   // compiler alignment, double check that the compiler indeed obeys them:
   // (Test consists of a short and byte):
-  TEST_EQ(flatbuffers::AlignOf<TestFlatbuffer>(), 2UL);
-  TEST_EQ(sizeof(TestFlatbuffer), 4UL);
+  TEST_EQ(flatbuffers::AlignOf<Test>(), 2UL);
+  TEST_EQ(sizeof(Test), 4UL);
 
-  const flatbuffers::Vector<const TestFlatbuffer *> *tests_array[] = {
+  const flatbuffers::Vector<const Test *> *tests_array[] = {
     monster->test4(),
     monster->test5(),
   };
@@ -553,7 +553,7 @@ void TriviallyCopyableTest() {
     TEST_EQ(__has_trivial_copy(Vec3), true);
   #else
     #if __cplusplus >= 201103L
-      TEST_EQ(std::is_trivially_copyable<Vec3Flatbuffer>::value, true);
+      TEST_EQ(std::is_trivially_copyable<Vec3>::value, true);
     #endif
   #endif
   // clang-format on
@@ -2398,12 +2398,12 @@ void EndianSwapTest() {
 void UninitializedVectorTest() {
   flatbuffers::FlatBufferBuilder builder;
 
-  TestFlatbuffer *buf = nullptr;
+  Test *buf = nullptr;
   auto vector_offset =
-      builder.CreateUninitializedVectorOfStructs<TestFlatbuffer>(2, &buf);
+      builder.CreateUninitializedVectorOfStructs<Test>(2, &buf);
   TEST_NOTNULL(buf);
-  buf[0] = TestFlatbuffer(10, 20);
-  buf[1] = TestFlatbuffer(30, 40);
+  buf[0] = Test(10, 20);
+  buf[1] = Test(30, 40);
 
   auto required_name = builder.CreateString("myMonster");
   auto monster_builder = MonsterBuilder(builder);
