@@ -1685,9 +1685,173 @@ class CppGenerator : public BaseGenerator {
     }
     GenOperatorNewDelete(struct_def);
     GenDefaultConstructor(struct_def);
+    GenTableConstructor(struct_def);
     code_ += "};";
     if (parser_.opts.gen_compare) GenCompareOperator(struct_def);
     code_ += "";
+  }
+
+  // Generate a constructor that takes all fields as arguments.
+  void GenTableConstructor(const StructDef &struct_def) {
+    if (!struct_def.fields.vec.empty()) { code_ += "//Generated Constructor "; }
+    std::string arg_list;
+    std::string init_list;
+    int padding_id = 0;
+
+    // lambda function for extracting the inner type of flatbuffers::Offset<>
+    std::function<std::string(std::string)> extractType;
+    extractType = [&extractType](std::string s) -> std::string {
+      if (s.find('<') != std::string::npos &&
+          s.find('>') != std::string::npos) {
+        auto first = s.find_first_of('<') + 1;
+        auto last = s.find_last_of('>');
+        return extractType(s.substr(first, last - first));
+      } else {
+        return s;
+      }
+    };
+
+    // lambda function for removing the suffix from a String
+    // return only the cutted word
+    std::function<std::string(std::string)> removeFlatbuffer;
+    removeFlatbuffer = [this](std::string s) {
+      std::stringstream ss{ s };
+      for (std::string st; ss >> st;) {
+        if (st.find(parser_.opts.internal_class_suffix) != std::string::npos) {
+          return st.substr(0, st.find(parser_.opts.internal_class_suffix));
+        }
+      }
+      return s;
+    };
+
+    // generation of lists for code generation
+    for (auto it = struct_def.fields.vec.begin();
+         it != struct_def.fields.vec.end(); ++it) {
+      const auto &field = **it;
+      const auto member_name = Name(field);
+      const auto arg_name = "_" + Name(field);
+      auto arg_type = GenTypeGet(field.value.type, " ", "const ", " &", true);
+      auto type2 = GenTypeNative(field.value.type, false, field) + "";
+      auto cpp_type = field.attributes.Lookup("cpp_type");
+      // copied from GenNativeTable
+      auto full_type =
+          (cpp_type
+               ? (field.value.type.base_type == BASE_TYPE_VECTOR
+                      ? NativeVector(&field) + "<" +
+                            GenTypeNativePtr(cpp_type->constant, &field,
+                                             false) +
+                            +"> "
+                      : GenTypeNativePtr(cpp_type->constant, &field, false))
+               : type2 + " ");
+
+      // check if member is deprecated
+      if (field.deprecated) { continue; }
+
+      // check if field is part of a Union
+      if (field.value.type.enum_def && field.value.type.enum_def->is_union) {
+        // if arg_type doesn't contain Union as a suffix is an internal
+        // member
+        // of the union, so skip
+        if (full_type.find("Union") == std::string::npos) { continue; }
+
+        arg_type = full_type;
+      }
+
+      // if member type is pointer or unique_ptr skip
+      if ((full_type.find("*") != std::string::npos) ||
+          (full_type.find("unique_ptr") != std::string::npos) /*||
+          (arg_type.find("*") != std::string::npos)*/) {
+        continue;
+      }
+
+      // modifing arg_type
+      if (field.value.type.base_type == BASE_TYPE_VECTOR &&
+          arg_type.find("flatbuffers::Offset") != std::string::npos) {
+        arg_type = "flatbuffers::Vector<" +
+                   removeFlatbuffer(extractType(arg_type)) +
+                   "> &";  // removing flatbuffers::Offset and Flatbuffer suffix
+      }
+      if (arg_type.find("*") != std::string::npos) {
+        arg_type.erase(arg_type.find('*'), 1);
+      }
+
+      arg_list += arg_type;
+      arg_list += arg_name;
+      init_list += member_name;
+      switch (field.value.type.base_type) {
+        case 1:
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+        case 7:
+        case 8:
+        case 9:
+        case 10:
+        case 11:
+        case BASE_TYPE_DOUBLE: {
+          if (arg_type == full_type) {
+            auto type = GenUnderlyingCast(field, false, arg_name);
+            if (field.value.type.enum_def &&
+                !field.value.type.enum_def->is_union) {
+              init_list += "{" + arg_name + "}";
+            } else {
+              init_list += "{flatbuffers::EndianScalar(" + type + ")} ";
+            }
+          }
+          break;
+        }
+        case BASE_TYPE_BOOL: {
+          init_list += "{" + arg_name + "}";
+          break;
+        }
+        case BASE_TYPE_STRING: {
+          init_list += "{" + arg_name + ".str()}";
+          break;
+        }
+
+        case BASE_TYPE_VECTOR: {
+          init_list += "{" + arg_name + ".cbegin(), " + arg_name + ".cend()}";
+          break;
+        }
+        case BASE_TYPE_STRUCT: {
+          init_list += "{" + arg_name + "}";
+          break;
+        }
+        case BASE_TYPE_UNION: {
+          init_list += "{" + arg_name + "}";
+          break;
+        }
+        default: {
+          init_list += "{" + arg_name + "} ";
+        }
+      }
+
+      if (*it != struct_def.fields.vec.back()) {
+        arg_list += ", ";
+        init_list += ",\n        ";
+      }
+      if (field.padding) {
+        GenPadding(field, &init_list, &padding_id, PaddingInitializer);
+      }
+    }
+    if (!arg_list.empty()) {
+      code_.SetValue("ARG_LIST", arg_list);
+      code_.SetValue("INIT_LIST", init_list);
+      code_ += "  {{STRUCT_NAME}}({{ARG_LIST}})";
+      code_ += "      : {{INIT_LIST}} {";
+      padding_id = 0;
+      for (auto it = struct_def.fields.vec.begin();
+           it != struct_def.fields.vec.end(); ++it) {
+        const auto &field = **it;
+        if (field.padding) {
+          std::string padding;
+          GenPadding(field, &padding, &padding_id, PaddingNoop);
+          code_ += padding;
+        }
+      }
+      code_ += "  }";
+    }
   }
 
   // Generate the code to call the appropriate Verify function(s) for a field.
