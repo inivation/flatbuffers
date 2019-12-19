@@ -850,8 +850,8 @@ struct Stat : public flatbuffers::NativeTable {
 //Generated Constructor 
   Stat(const flatbuffers::String &_id, int64_t _val, uint16_t _count)
       : id{_id.str()},
-        val{flatbuffers::EndianScalar(_val)} ,
-        count{flatbuffers::EndianScalar(_count)}  {
+        val{flatbuffers::EndianScalar(_val)},
+        count{flatbuffers::EndianScalar(_count)} {
   }
 };
 
@@ -963,7 +963,7 @@ struct Referrable : public flatbuffers::NativeTable {
   }
 //Generated Constructor 
   Referrable(uint64_t _id)
-      : id{flatbuffers::EndianScalar(_id)}  {
+      : id{flatbuffers::EndianScalar(_id)} {
   }
 };
 
@@ -1099,8 +1099,8 @@ struct Monster : public flatbuffers::NativeTable {
   }
 //Generated Constructor 
   Monster(int16_t _mana, int16_t _hp, const flatbuffers::String &_name, const flatbuffers::Vector<uint8_t> &_inventory, Color _color, AnyUnion _test, const flatbuffers::Vector<const Test > &_test4, flatbuffers::Vector<flatbuffers::String> &_testarrayofstring, const flatbuffers::Vector<uint8_t> &_testnestedflatbuffer, bool _testbool, int32_t _testhashs32_fnv1, uint32_t _testhashu32_fnv1, int64_t _testhashs64_fnv1, uint64_t _testhashu64_fnv1, int32_t _testhashs32_fnv1a, int64_t _testhashs64_fnv1a, uint64_t _testhashu64_fnv1a, const flatbuffers::Vector<uint8_t> &_testarrayofbools, float _testf, float _testf2, float _testf3, flatbuffers::Vector<flatbuffers::String> &_testarrayofstring2, const flatbuffers::Vector<const Ability > &_testarrayofsortedstruct, const flatbuffers::Vector<uint8_t> &_flex, const flatbuffers::Vector<const Test > &_test5, const flatbuffers::Vector<int64_t> &_vector_of_longs, const flatbuffers::Vector<double> &_vector_of_doubles, AnyUniqueAliasesUnion _any_unique, AnyAmbiguousAliasesUnion _any_ambiguous, const flatbuffers::Vector<int8_t> &_vector_of_enums)
-      : mana{flatbuffers::EndianScalar(_mana)} ,
-        hp{flatbuffers::EndianScalar(_hp)} ,
+      : mana{flatbuffers::EndianScalar(_mana)},
+        hp{flatbuffers::EndianScalar(_hp)},
         name{_name.str()},
         inventory{_inventory.cbegin(), _inventory.cend()},
         color{_color},
@@ -1109,17 +1109,17 @@ struct Monster : public flatbuffers::NativeTable {
         testarrayofstring{_testarrayofstring.cbegin(), _testarrayofstring.cend()},
         testnestedflatbuffer{_testnestedflatbuffer.cbegin(), _testnestedflatbuffer.cend()},
         testbool{_testbool},
-        testhashs32_fnv1{flatbuffers::EndianScalar(_testhashs32_fnv1)} ,
-        testhashu32_fnv1{flatbuffers::EndianScalar(_testhashu32_fnv1)} ,
-        testhashs64_fnv1{flatbuffers::EndianScalar(_testhashs64_fnv1)} ,
-        testhashu64_fnv1{flatbuffers::EndianScalar(_testhashu64_fnv1)} ,
-        testhashs32_fnv1a{flatbuffers::EndianScalar(_testhashs32_fnv1a)} ,
-        testhashs64_fnv1a{flatbuffers::EndianScalar(_testhashs64_fnv1a)} ,
-        testhashu64_fnv1a{flatbuffers::EndianScalar(_testhashu64_fnv1a)} ,
+        testhashs32_fnv1{flatbuffers::EndianScalar(_testhashs32_fnv1)},
+        testhashu32_fnv1{flatbuffers::EndianScalar(_testhashu32_fnv1)},
+        testhashs64_fnv1{flatbuffers::EndianScalar(_testhashs64_fnv1)},
+        testhashu64_fnv1{flatbuffers::EndianScalar(_testhashu64_fnv1)},
+        testhashs32_fnv1a{flatbuffers::EndianScalar(_testhashs32_fnv1a)},
+        testhashs64_fnv1a{flatbuffers::EndianScalar(_testhashs64_fnv1a)},
+        testhashu64_fnv1a{flatbuffers::EndianScalar(_testhashu64_fnv1a)},
         testarrayofbools{_testarrayofbools.cbegin(), _testarrayofbools.cend()},
-        testf{flatbuffers::EndianScalar(_testf)} ,
-        testf2{flatbuffers::EndianScalar(_testf2)} ,
-        testf3{flatbuffers::EndianScalar(_testf3)} ,
+        testf{flatbuffers::EndianScalar(_testf)},
+        testf2{flatbuffers::EndianScalar(_testf2)},
+        testf3{flatbuffers::EndianScalar(_testf3)},
         testarrayofstring2{_testarrayofstring2.cbegin(), _testarrayofstring2.cend()},
         testarrayofsortedstruct{_testarrayofsortedstruct.cbegin(), _testarrayofsortedstruct.cend()},
         flex{_flex.cbegin(), _flex.cend()},
@@ -2078,16 +2078,16 @@ struct TypeAliases : public flatbuffers::NativeTable {
   }
 //Generated Constructor 
   TypeAliases(int8_t _i8, uint8_t _u8, int16_t _i16, uint16_t _u16, int32_t _i32, uint32_t _u32, int64_t _i64, uint64_t _u64, float _f32, double _f64, const flatbuffers::Vector<int8_t> &_v8, const flatbuffers::Vector<double> &_vf64)
-      : i8{flatbuffers::EndianScalar(_i8)} ,
-        u8{flatbuffers::EndianScalar(_u8)} ,
-        i16{flatbuffers::EndianScalar(_i16)} ,
-        u16{flatbuffers::EndianScalar(_u16)} ,
-        i32{flatbuffers::EndianScalar(_i32)} ,
-        u32{flatbuffers::EndianScalar(_u32)} ,
-        i64{flatbuffers::EndianScalar(_i64)} ,
-        u64{flatbuffers::EndianScalar(_u64)} ,
-        f32{flatbuffers::EndianScalar(_f32)} ,
-        f64{flatbuffers::EndianScalar(_f64)} ,
+      : i8{flatbuffers::EndianScalar(_i8)},
+        u8{flatbuffers::EndianScalar(_u8)},
+        i16{flatbuffers::EndianScalar(_i16)},
+        u16{flatbuffers::EndianScalar(_u16)},
+        i32{flatbuffers::EndianScalar(_i32)},
+        u32{flatbuffers::EndianScalar(_u32)},
+        i64{flatbuffers::EndianScalar(_i64)},
+        u64{flatbuffers::EndianScalar(_u64)},
+        f32{flatbuffers::EndianScalar(_f32)},
+        f64{flatbuffers::EndianScalar(_f64)},
         v8{_v8.cbegin(), _v8.cend()},
         vf64{_vf64.cbegin(), _vf64.cend()} {
   }

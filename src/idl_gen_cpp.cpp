@@ -1796,7 +1796,7 @@ class CppGenerator : public BaseGenerator {
                 !field.value.type.enum_def->is_union) {
               init_list += "{" + arg_name + "}";
             } else {
-              init_list += "{flatbuffers::EndianScalar(" + type + ")} ";
+              init_list += "{flatbuffers::EndianScalar(" + type + ")}";
             }
           }
           break;
@@ -1823,7 +1823,7 @@ class CppGenerator : public BaseGenerator {
           break;
         }
         default: {
-          init_list += "{" + arg_name + "} ";
+          init_list += "{" + arg_name + "}";
         }
       }
 
