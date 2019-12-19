@@ -1774,6 +1774,11 @@ class CppGenerator : public BaseGenerator {
       if (arg_type.find("*") != std::string::npos) {
         arg_type.erase(arg_type.find('*'), 1);
       }
+      if (arg_type.find("flatbuffers::String") != std::string::npos) {
+        arg_type.replace(arg_type.find("flatbuffers::String"),
+                         std::string("flatbuffers::String").size(),
+                         "std::string");
+      }
 
       arg_list += arg_type;
       arg_list += arg_name;
@@ -1806,7 +1811,7 @@ class CppGenerator : public BaseGenerator {
           break;
         }
         case BASE_TYPE_STRING: {
-          init_list += "{" + arg_name + ".str()}";
+          init_list += "{" + arg_name + "}";
           break;
         }
 

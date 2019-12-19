@@ -848,8 +848,8 @@ struct Stat : public flatbuffers::NativeTable {
         count(0) {
   }
 //Generated Constructor 
-  Stat(const flatbuffers::String &_id, int64_t _val, uint16_t _count)
-      : id{_id.str()},
+  Stat(const std::string &_id, int64_t _val, uint16_t _count)
+      : id{_id},
         val{flatbuffers::EndianScalar(_val)},
         count{flatbuffers::EndianScalar(_count)} {
   }
@@ -1098,10 +1098,10 @@ struct Monster : public flatbuffers::NativeTable {
         non_owning_reference(nullptr) {
   }
 //Generated Constructor 
-  Monster(int16_t _mana, int16_t _hp, const flatbuffers::String &_name, const flatbuffers::Vector<uint8_t> &_inventory, Color _color, AnyUnion _test, const flatbuffers::Vector<const Test > &_test4, flatbuffers::Vector<flatbuffers::String> &_testarrayofstring, const flatbuffers::Vector<uint8_t> &_testnestedflatbuffer, bool _testbool, int32_t _testhashs32_fnv1, uint32_t _testhashu32_fnv1, int64_t _testhashs64_fnv1, uint64_t _testhashu64_fnv1, int32_t _testhashs32_fnv1a, int64_t _testhashs64_fnv1a, uint64_t _testhashu64_fnv1a, const flatbuffers::Vector<uint8_t> &_testarrayofbools, float _testf, float _testf2, float _testf3, flatbuffers::Vector<flatbuffers::String> &_testarrayofstring2, const flatbuffers::Vector<const Ability > &_testarrayofsortedstruct, const flatbuffers::Vector<uint8_t> &_flex, const flatbuffers::Vector<const Test > &_test5, const flatbuffers::Vector<int64_t> &_vector_of_longs, const flatbuffers::Vector<double> &_vector_of_doubles, AnyUniqueAliasesUnion _any_unique, AnyAmbiguousAliasesUnion _any_ambiguous, const flatbuffers::Vector<int8_t> &_vector_of_enums)
+  Monster(int16_t _mana, int16_t _hp, const std::string &_name, const flatbuffers::Vector<uint8_t> &_inventory, Color _color, AnyUnion _test, const flatbuffers::Vector<const Test > &_test4, flatbuffers::Vector<std::string> &_testarrayofstring, const flatbuffers::Vector<uint8_t> &_testnestedflatbuffer, bool _testbool, int32_t _testhashs32_fnv1, uint32_t _testhashu32_fnv1, int64_t _testhashs64_fnv1, uint64_t _testhashu64_fnv1, int32_t _testhashs32_fnv1a, int64_t _testhashs64_fnv1a, uint64_t _testhashu64_fnv1a, const flatbuffers::Vector<uint8_t> &_testarrayofbools, float _testf, float _testf2, float _testf3, flatbuffers::Vector<std::string> &_testarrayofstring2, const flatbuffers::Vector<const Ability > &_testarrayofsortedstruct, const flatbuffers::Vector<uint8_t> &_flex, const flatbuffers::Vector<const Test > &_test5, const flatbuffers::Vector<int64_t> &_vector_of_longs, const flatbuffers::Vector<double> &_vector_of_doubles, AnyUniqueAliasesUnion _any_unique, AnyAmbiguousAliasesUnion _any_ambiguous, const flatbuffers::Vector<int8_t> &_vector_of_enums)
       : mana{flatbuffers::EndianScalar(_mana)},
         hp{flatbuffers::EndianScalar(_hp)},
-        name{_name.str()},
+        name{_name},
         inventory{_inventory.cbegin(), _inventory.cend()},
         color{_color},
         test{_test},
