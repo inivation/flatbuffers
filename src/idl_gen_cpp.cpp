@@ -1697,7 +1697,7 @@ class CppGenerator : public BaseGenerator {
     std::string arg_list;
     std::string init_list;
     int padding_id = 0;
-
+    bool notFirst = false;
     // lambda function for extracting the inner type of flatbuffers::Offset<>
     std::function<std::string(std::string)> extractType;
     extractType = [&extractType](std::string s) -> std::string {
@@ -1728,6 +1728,7 @@ class CppGenerator : public BaseGenerator {
     for (auto it = struct_def.fields.vec.begin();
          it != struct_def.fields.vec.end(); ++it) {
       const auto &field = **it;
+
       const auto member_name = Name(field);
       const auto arg_name = "_" + Name(field);
       auto arg_type = GenTypeGet(field.value.type, " ", "const ", " &", true);
@@ -1759,8 +1760,12 @@ class CppGenerator : public BaseGenerator {
 
       // if member type is pointer or unique_ptr skip
       if ((full_type.find("*") != std::string::npos) ||
-          (full_type.find("unique_ptr") != std::string::npos) /*||
-          (arg_type.find("*") != std::string::npos)*/) {
+          (full_type.find("unique_ptr") != std::string::npos)) {
+        continue;
+      }
+      // if unscoped enum skip
+      if (!parser_.opts.scoped_enums && field.value.type.enum_def &&
+          !field.value.type.enum_def->is_union) {
         continue;
       }
 
@@ -1779,6 +1784,12 @@ class CppGenerator : public BaseGenerator {
                          std::string("flatbuffers::String").size(),
                          "std::string");
       }
+
+      if (it != struct_def.fields.vec.begin() && notFirst) {
+        arg_list += ", ";
+        init_list += ",\n        ";
+      }
+      notFirst = true;
 
       arg_list += arg_type;
       arg_list += arg_name;
@@ -1799,7 +1810,9 @@ class CppGenerator : public BaseGenerator {
             auto type = GenUnderlyingCast(field, false, arg_name);
             if (field.value.type.enum_def &&
                 !field.value.type.enum_def->is_union) {
-              init_list += "{" + arg_name + "}";
+              if (parser_.opts.scoped_enums) {
+                init_list += "{" + arg_name + "}";
+              }
             } else {
               init_list += "{flatbuffers::EndianScalar(" + type + ")}";
             }
@@ -1831,11 +1844,6 @@ class CppGenerator : public BaseGenerator {
           init_list += "{" + arg_name + "}";
         }
       }
-
-      if (*it != struct_def.fields.vec.back()) {
-        arg_list += ", ";
-        init_list += ",\n        ";
-      }
       if (field.padding) {
         GenPadding(field, &init_list, &padding_id, PaddingInitializer);
       }
@@ -1846,6 +1854,7 @@ class CppGenerator : public BaseGenerator {
       code_ += "  {{STRUCT_NAME}}({{ARG_LIST}})";
       code_ += "      : {{INIT_LIST}} {";
       padding_id = 0;
+
       for (auto it = struct_def.fields.vec.begin();
            it != struct_def.fields.vec.end(); ++it) {
         const auto &field = **it;

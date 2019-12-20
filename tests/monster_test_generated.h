@@ -775,9 +775,6 @@ struct TestSimpleTableWithEnum : public flatbuffers::NativeTable {
       : color(Color_Green) {
   }
 //Generated Constructor 
-  TestSimpleTableWithEnum(Color _color)
-      : color{_color} {
-  }
 };
 
 inline bool operator==(const TestSimpleTableWithEnum &lhs, const TestSimpleTableWithEnum &rhs) {
@@ -1098,12 +1095,11 @@ struct Monster : public flatbuffers::NativeTable {
         non_owning_reference(nullptr) {
   }
 //Generated Constructor 
-  Monster(int16_t _mana, int16_t _hp, const std::string &_name, const flatbuffers::Vector<uint8_t> &_inventory, Color _color, AnyUnion _test, const flatbuffers::Vector<const Test > &_test4, flatbuffers::Vector<std::string> &_testarrayofstring, const flatbuffers::Vector<uint8_t> &_testnestedflatbuffer, bool _testbool, int32_t _testhashs32_fnv1, uint32_t _testhashu32_fnv1, int64_t _testhashs64_fnv1, uint64_t _testhashu64_fnv1, int32_t _testhashs32_fnv1a, int64_t _testhashs64_fnv1a, uint64_t _testhashu64_fnv1a, const flatbuffers::Vector<uint8_t> &_testarrayofbools, float _testf, float _testf2, float _testf3, flatbuffers::Vector<std::string> &_testarrayofstring2, const flatbuffers::Vector<const Ability > &_testarrayofsortedstruct, const flatbuffers::Vector<uint8_t> &_flex, const flatbuffers::Vector<const Test > &_test5, const flatbuffers::Vector<int64_t> &_vector_of_longs, const flatbuffers::Vector<double> &_vector_of_doubles, AnyUniqueAliasesUnion _any_unique, AnyAmbiguousAliasesUnion _any_ambiguous, const flatbuffers::Vector<int8_t> &_vector_of_enums)
+  Monster(int16_t _mana, int16_t _hp, const std::string &_name, const flatbuffers::Vector<uint8_t> &_inventory, AnyUnion _test, const flatbuffers::Vector<const Test > &_test4, flatbuffers::Vector<std::string> &_testarrayofstring, const flatbuffers::Vector<uint8_t> &_testnestedflatbuffer, bool _testbool, int32_t _testhashs32_fnv1, uint32_t _testhashu32_fnv1, int64_t _testhashs64_fnv1, uint64_t _testhashu64_fnv1, int32_t _testhashs32_fnv1a, int64_t _testhashs64_fnv1a, uint64_t _testhashu64_fnv1a, const flatbuffers::Vector<uint8_t> &_testarrayofbools, float _testf, float _testf2, float _testf3, flatbuffers::Vector<std::string> &_testarrayofstring2, const flatbuffers::Vector<const Ability > &_testarrayofsortedstruct, const flatbuffers::Vector<uint8_t> &_flex, const flatbuffers::Vector<const Test > &_test5, const flatbuffers::Vector<int64_t> &_vector_of_longs, const flatbuffers::Vector<double> &_vector_of_doubles, AnyUniqueAliasesUnion _any_unique, AnyAmbiguousAliasesUnion _any_ambiguous)
       : mana{flatbuffers::EndianScalar(_mana)},
         hp{flatbuffers::EndianScalar(_hp)},
         name{_name},
         inventory{_inventory.cbegin(), _inventory.cend()},
-        color{_color},
         test{_test},
         test4{_test4.cbegin(), _test4.cend()},
         testarrayofstring{_testarrayofstring.cbegin(), _testarrayofstring.cend()},
@@ -1127,8 +1123,7 @@ struct Monster : public flatbuffers::NativeTable {
         vector_of_longs{_vector_of_longs.cbegin(), _vector_of_longs.cend()},
         vector_of_doubles{_vector_of_doubles.cbegin(), _vector_of_doubles.cend()},
         any_unique{_any_unique},
-        any_ambiguous{_any_ambiguous},
-        vector_of_enums{_vector_of_enums.cbegin(), _vector_of_enums.cend()} {
+        any_ambiguous{_any_ambiguous} {
   }
 };
 
