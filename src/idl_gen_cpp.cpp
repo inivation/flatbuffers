@@ -1673,11 +1673,13 @@ class CppGenerator : public BaseGenerator {
     const auto native_name =
         NativeName(Name(struct_def), &struct_def, parser_.opts);
     code_.SetValue("STRUCT_NAME", Name(struct_def));
+    code_.SetValue("STRUCT_NAME_SUFF",
+                   Name(struct_def) + parser_.opts.internal_class_suffix);
     code_.SetValue("NATIVE_NAME", native_name);
 
     // Generate a C++ object that can hold an unpacked version of this table.
     code_ += "struct {{NATIVE_NAME}} : public flatbuffers::NativeTable {";
-    code_ += "  typedef {{STRUCT_NAME}} TableType;";
+    code_ += "  typedef {{STRUCT_NAME_SUFF}} TableType;";
     GenFullyQualifiedNameGetter(struct_def, native_name);
     for (auto it = struct_def.fields.vec.begin();
          it != struct_def.fields.vec.end(); ++it) {
@@ -2866,6 +2868,8 @@ class CppGenerator : public BaseGenerator {
     code_ +=
         "FLATBUFFERS_MANUALLY_ALIGNED_STRUCT({{ALIGN}}) "
         "{{STRUCT_NAME}} FLATBUFFERS_FINAL_CLASS {";
+    code_ += "typedef {{STRUCT_NAME}} NativeTableType;";
+    code_ += "typedef {{STRUCT_NAME}} TableType;";
     code_ += " private:";
 
     int padding_id = 0;
