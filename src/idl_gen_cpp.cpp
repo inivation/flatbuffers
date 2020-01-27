@@ -16,12 +16,12 @@
 
 // independent from idl_parser, since this code is not needed for most clients
 
+#include <unordered_set>
+
 #include "flatbuffers/code_generators.h"
 #include "flatbuffers/flatbuffers.h"
 #include "flatbuffers/idl.h"
 #include "flatbuffers/util.h"
-
-#include <unordered_set>
 
 namespace flatbuffers {
 
@@ -1784,6 +1784,11 @@ class CppGenerator : public BaseGenerator {
                          std::string("flatbuffers::String").size(),
                          "std::string");
       }
+      if (arg_type.find("flatbuffers::Vector") != std::string::npos) {
+        arg_type.replace(arg_type.find("flatbuffers::Vector"),
+                         std::string("flatbuffers::Vector").size(),
+                         "std::vector");
+      }
 
       if (it != struct_def.fields.vec.begin() && notFirst) {
         arg_list += ", ";
@@ -1794,56 +1799,8 @@ class CppGenerator : public BaseGenerator {
       arg_list += arg_type;
       arg_list += arg_name;
       init_list += member_name;
-      switch (field.value.type.base_type) {
-        case 1:
-        case 3:
-        case 4:
-        case 5:
-        case 6:
-        case 7:
-        case 8:
-        case 9:
-        case 10:
-        case 11:
-        case BASE_TYPE_DOUBLE: {
-          if (arg_type == full_type) {
-            auto type = GenUnderlyingCast(field, false, arg_name);
-            if (field.value.type.enum_def &&
-                !field.value.type.enum_def->is_union) {
-              if (parser_.opts.scoped_enums) {
-                init_list += "{" + arg_name + "}";
-              }
-            } else {
-              init_list += "{flatbuffers::EndianScalar(" + type + ")}";
-            }
-          }
-          break;
-        }
-        case BASE_TYPE_BOOL: {
-          init_list += "{" + arg_name + "}";
-          break;
-        }
-        case BASE_TYPE_STRING: {
-          init_list += "{" + arg_name + "}";
-          break;
-        }
+      init_list += "{" + arg_name + "}";
 
-        case BASE_TYPE_VECTOR: {
-          init_list += "{" + arg_name + ".cbegin(), " + arg_name + ".cend()}";
-          break;
-        }
-        case BASE_TYPE_STRUCT: {
-          init_list += "{" + arg_name + "}";
-          break;
-        }
-        case BASE_TYPE_UNION: {
-          init_list += "{" + arg_name + "}";
-          break;
-        }
-        default: {
-          init_list += "{" + arg_name + "}";
-        }
-      }
       if (field.padding) {
         GenPadding(field, &init_list, &padding_id, PaddingInitializer);
       }

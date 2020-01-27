@@ -217,11 +217,11 @@ struct Monster : public flatbuffers::NativeTable {
         color(Color_Blue) {
   }
 //Generated Constructor 
-  Monster(int16_t _mana, int16_t _hp, const std::string &_name, const flatbuffers::Vector<uint8_t> &_inventory, EquipmentUnion _equipped)
-      : mana{flatbuffers::EndianScalar(_mana)},
-        hp{flatbuffers::EndianScalar(_hp)},
+  Monster(int16_t _mana, int16_t _hp, const std::string &_name, const std::vector<uint8_t> &_inventory, EquipmentUnion _equipped)
+      : mana{_mana},
+        hp{_hp},
         name{_name},
-        inventory{_inventory.cbegin(), _inventory.cend()},
+        inventory{_inventory},
         equipped{_equipped} {
   }
 };
@@ -445,7 +445,7 @@ struct Weapon : public flatbuffers::NativeTable {
 //Generated Constructor 
   Weapon(const std::string &_name, int16_t _damage)
       : name{_name},
-        damage{flatbuffers::EndianScalar(_damage)} {
+        damage{_damage} {
   }
 };
 
