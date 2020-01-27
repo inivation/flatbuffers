@@ -1693,36 +1693,11 @@ class CppGenerator : public BaseGenerator {
 
   // Generate a constructor that takes all fields as arguments.
   void GenTableConstructor(const StructDef &struct_def) {
-    if (!struct_def.fields.vec.empty()) { code_ += "//Generated Constructor "; }
+    if (!struct_def.fields.vec.empty()) { code_ += "// Generated Constructor"; }
     std::string arg_list;
     std::string init_list;
     int padding_id = 0;
     bool notFirst = false;
-    // lambda function for extracting the inner type of flatbuffers::Offset<>
-    std::function<std::string(std::string)> extractType;
-    extractType = [&extractType](std::string s) -> std::string {
-      if (s.find('<') != std::string::npos &&
-          s.find('>') != std::string::npos) {
-        auto first = s.find_first_of('<') + 1;
-        auto last = s.find_last_of('>');
-        return extractType(s.substr(first, last - first));
-      } else {
-        return s;
-      }
-    };
-
-    // lambda function for removing the suffix from a String
-    // return only the cutted word
-    std::function<std::string(std::string)> removeFlatbuffer;
-    removeFlatbuffer = [this](std::string s) {
-      std::stringstream ss{ s };
-      for (std::string st; ss >> st;) {
-        if (st.find(parser_.opts.internal_class_suffix) != std::string::npos) {
-          return st.substr(0, st.find(parser_.opts.internal_class_suffix));
-        }
-      }
-      return s;
-    };
 
     // generation of lists for code generation
     for (auto it = struct_def.fields.vec.begin();
@@ -1731,63 +1706,17 @@ class CppGenerator : public BaseGenerator {
 
       const auto member_name = Name(field);
       const auto arg_name = "_" + Name(field);
-      auto arg_type = GenTypeGet(field.value.type, " ", "const ", " &", true);
-      auto type2 = GenTypeNative(field.value.type, false, field) + "";
-      auto cpp_type = field.attributes.Lookup("cpp_type");
-      // copied from GenNativeTable
-      auto full_type =
-          (cpp_type
-               ? (field.value.type.base_type == BASE_TYPE_VECTOR
-                      ? NativeVector(&field) + "<" +
-                            GenTypeNativePtr(cpp_type->constant, &field,
-                                             false) +
-                            +"> "
-                      : GenTypeNativePtr(cpp_type->constant, &field, false))
-               : type2 + " ");
+      auto arg_type = GenTypeNative(field.value.type, false, field) + " ";
 
       // check if member is deprecated
       if (field.deprecated) { continue; }
 
-      // check if field is part of a Union
-      if (field.value.type.enum_def && field.value.type.enum_def->is_union) {
-        // if arg_type doesn't contain Union as a suffix is an internal
-        // member
-        // of the union, so skip
-        if (full_type.find("Union") == std::string::npos) { continue; }
-
-        arg_type = full_type;
-      }
-
-      // if member type is pointer or unique_ptr skip
-      if ((full_type.find("*") != std::string::npos) ||
-          (full_type.find("unique_ptr") != std::string::npos)) {
-        continue;
-      }
-      // if unscoped enum skip
-      if (!parser_.opts.scoped_enums && field.value.type.enum_def &&
-          !field.value.type.enum_def->is_union) {
-        continue;
-      }
-
-      // modifing arg_type
-      if (field.value.type.base_type == BASE_TYPE_VECTOR &&
-          arg_type.find("flatbuffers::Offset") != std::string::npos) {
-        arg_type = "flatbuffers::Vector<" +
-                   removeFlatbuffer(extractType(arg_type)) +
-                   "> &";  // removing flatbuffers::Offset and Flatbuffer suffix
-      }
-      if (arg_type.find("*") != std::string::npos) {
-        arg_type.erase(arg_type.find('*'), 1);
-      }
-      if (arg_type.find("flatbuffers::String") != std::string::npos) {
-        arg_type.replace(arg_type.find("flatbuffers::String"),
-                         std::string("flatbuffers::String").size(),
-                         "std::string");
-      }
-      if (arg_type.find("flatbuffers::Vector") != std::string::npos) {
-        arg_type.replace(arg_type.find("flatbuffers::Vector"),
-                         std::string("flatbuffers::Vector").size(),
-                         "std::vector");
+      // if a vector, make sure to access it via 'const VEC &' for performance.
+      // same for string via 'const STR &' and struct via 'const STRUCT &'.
+      if (field.value.type.base_type == BASE_TYPE_VECTOR ||
+          field.value.type.base_type == BASE_TYPE_STRING ||
+          field.value.type.base_type == BASE_TYPE_STRUCT) {
+        arg_type = "const " + arg_type + "&";
       }
 
       if (it != struct_def.fields.vec.begin() && notFirst) {
