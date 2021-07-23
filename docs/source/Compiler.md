@@ -21,6 +21,9 @@ For any schema input files, one or more generators can be specified:
 -   `--cpp`, `-c` : Generate a C++ header for all definitions in this file (as
     `filename_generated.h`).
 
+-   `--cpp-ng`, `-x` : Generate a C++ header for all definitions in this file (as
+    `filename_generated.h`), using the new C++ generator.
+
 -   `--java`, `-j` : Generate Java code.
 
 -   `--kotlin`, `-k` : Generate Kotlin code.
