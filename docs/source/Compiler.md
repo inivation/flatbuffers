@@ -145,6 +145,7 @@ Additional options:
     * `c++0x` - generate code compatible with old compilers (VS2010),
     * `c++11` - use C++11 code generator (default),
     * `c++17` - use C++17 features in generated code (experimental).
+    * `c++20` - use C++20 features in generated code (experimental).
 
 -   `--object-prefix` : Customise class prefix for C++ object-based API.
 

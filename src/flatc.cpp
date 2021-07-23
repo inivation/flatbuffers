@@ -131,6 +131,7 @@ std::string FlatCompiler::GetUsageString(const char *program_name) const {
     "                          * 'c++0x' - generate code compatible with old compilers;\n"
     "                          * 'c++11' - use C++11 code generator (default);\n"
     "                          * 'c++17' - use C++17 features in generated code (experimental).\n"
+    "                          * 'c++20' - use C++20 features in generated code (experimental).\n"
     "  --cpp-static-reflection When using C++17, generate extra code to provide compile-time\n"
     "                          (static) reflection of Flatbuffers types.  Requires --cpp-std\n"
     "                          to be \"c++17\" or higher.\n"
