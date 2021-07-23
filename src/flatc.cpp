@@ -121,6 +121,8 @@ std::string FlatCompiler::GetUsageString(const char *program_name) const {
     "                         (see the --cpp-str-flex-ctor option to change this behavior).\n"
     "  --cpp-str-flex-ctor    Don't construct custom string types by passing std::string\n"
     "                         from Flatbuffers, but (char* + length).\n"
+    "  --cpp-vec-type T       Set object API vector type (default std::vector).\n"
+    "                         T::data(), T::size(), T::resize() and T::[] must be supported.\n"
     "  --cpp-field-case-style STYLE Generate C++ fields using selected case style.\n"
     "                         Supported STYLE values:\n"
     "                          * 'unchanged' - leave unchanged (default);\n"
@@ -289,6 +291,9 @@ int FlatCompiler::Compile(int argc, const char **argv) {
         opts.cpp_object_api_string_type = argv[argi];
       } else if (arg == "--cpp-str-flex-ctor") {
         opts.cpp_object_api_string_flexible_constructor = true;
+      } else if (arg == "--cpp-vec-type") {
+        if (++argi >= argc) Error("missing type following: " + arg, true);
+        opts.cpp_object_api_vector_type = argv[argi];
       } else if (arg == "--no-cpp-direct-copy") {
         opts.cpp_direct_copy = false;
       } else if (arg == "--cpp-field-case-style") {

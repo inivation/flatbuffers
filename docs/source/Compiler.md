@@ -137,6 +137,9 @@ Additional options:
     std::string from Flatbuffers, but (char* + length). This allows efficient
 	construction of custom string types, including zero-copy construction.
 
+- `--cpp-vec-type T` : Set object API vector type (default std::vector)
+    T::data(), T::size(), T::resize() and T::[] must be supported.
+
 -   `--no-cpp-direct-copy` : Don't generate direct copy methods for C++
     object-based API.
 
