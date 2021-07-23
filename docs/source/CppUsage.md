@@ -131,11 +131,15 @@ The following attributes are specific to the object-based API code generation:
     optionally present in a given buffer, they are best represented as pointers
     (specifically std::unique_ptrs) in the native class since they can be null.
     This attribute changes the member declaration to use the type directly
-    rather than wrapped in a unique_ptr.
+    rather than wrapped in a unique_ptr, and can be used on struct fields,
+    table fields, as well as vectors of structs and tables. For vectors of
+    structs, this is already the default behavior and has no additional effect.
 
--   `native_default("value")` (on a field): For members that are declared
+-   `native_default("value")` (on a field): For struct members that are declared
     "native_inline", the value specified with this attribute will be included
-    verbatim in the class constructor initializer list for this member.
+    verbatim in the class constructor initializer list for this member, to allow
+    customized initialization of the struct members (default is zero-initialization).
+    This can also be used with scalar members to initialize with a non-zero value.
 
 -   `native_custom_alloc("custom_allocator")` (on a table or struct): When using the
     object-based API all generated NativeTables that  are allocated when unpacking

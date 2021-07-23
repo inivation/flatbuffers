@@ -982,8 +982,12 @@ CheckedError Parser::ParseField(StructDef &struct_def) {
         "definition");
 
   field->native_inline = field->attributes.Lookup("native_inline") != nullptr;
-  if (field->native_inline && !IsStruct(field->value.type))
-    return Error("native_inline can only be defined on structs");
+  if (field->native_inline && field->value.type.base_type != BASE_TYPE_STRUCT &&
+      field->value.type.element != BASE_TYPE_STRUCT) {
+    return Error(
+        "native_inline can only be defined on structs, tables and their "
+        "vectors");
+  }
 
   auto nested = field->attributes.Lookup("nested_flatbuffer");
   if (nested) {
