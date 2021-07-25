@@ -571,6 +571,8 @@ struct IDLOptions {
   bool gen_generated;
   std::string object_prefix;
   std::string object_suffix;
+  std::string flatbuffer_prefix;
+  std::string flatbuffer_suffix;
   bool union_value_namespacing;
   bool allow_non_utf8;
   bool natural_utf8;

@@ -140,6 +140,8 @@ std::string FlatCompiler::GetUsageString(const char *program_name) const {
     "  --object-prefix        Customise class prefix for C++ object-based API.\n"
     "  --object-suffix        Customise class suffix for C++ object-based API.\n"
     "                         Default value is \"T\".\n"
+	"  --flatbuffer-prefix    Customise class prefix for C++ flatbuffers.\n"
+	"  --flatbuffer-suffix    Customise class suffix for C++ flatbuffers.\n"
     "  --go-namespace         Generate the overriding namespace in Golang.\n"
     "  --go-import            Generate the overriding import for flatbuffers in Golang\n"
     "                         (default is \"github.com/google/flatbuffers/go\").\n"
@@ -319,6 +321,12 @@ int FlatCompiler::Compile(int argc, const char **argv) {
       } else if (arg == "--object-suffix") {
         if (++argi >= argc) Error("missing suffix following: " + arg, true);
         opts.object_suffix = argv[argi];
+      } else if (arg == "--flatbuffer-prefix") {
+        if (++argi >= argc) Error("missing prefix following: " + arg, true);
+        opts.flatbuffer_prefix = argv[argi];
+      } else if (arg == "--flatbuffer-suffix") {
+        if (++argi >= argc) Error("missing suffix following: " + arg, true);
+        opts.flatbuffer_suffix = argv[argi];
       } else if (arg == "--gen-all") {
         opts.generate_all = true;
         opts.include_dependence_headers = false;
