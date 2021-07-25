@@ -1,7 +1,6 @@
-// Features we need to support from idl.h:
-// - prefixed_enums (not supported, only scoped enums)
-// - scoped_enums (supported, only way for enums)
-// - include_dependence_headers
+// Features we do support:
+// - scoped_enums (only supported enums)
+// -X include_dependence_headers
 // - mutable_buffer
 // - generate_name_strings
 // - generate_object_based_api
@@ -13,31 +12,52 @@
 // - cpp_object_api_field_case_style
 // - cpp_direct_copy
 // - gen_nullable
-// - object_prefix
-// - object_suffix
-// - include_prefix
-// - keep_include_path
-// - cpp_includes
-// - cpp_std
+// -X object_prefix
+// -X object_suffix
+// -X flatbuffer_prefix
+// -X flatbuffer_suffix
+// -X include_prefix
+// -X keep_include_path
+// -X cpp_includes
+// -X cpp_std
 // - cpp_static_reflection
-// - mini_reflect
 // - set_empty_strings_to_null
 // - set_empty_vectors_to_null
+// - attribute 'bit_flags'
+// - attribute 'cpp_ptr_type'
+// - attribute 'cpp_ptr_type_get'
+// - attribute 'cpp_str_type'
+// - attribute 'cpp_str_flex_ctor'
+// - attribute 'cpp_vec_type'
+// - attribute 'required'
+// - attribute 'deprecated'
+// - attribute 'key'
+// - attribute 'native_inline'
+// - attribute 'native_default'
+// - attribute 'native_custom_alloc'
+// - attribute 'native_type'
+// - attribute 'native_type_pack_name'
+// -X attribute 'original_order' (in parser)
 //
-// Currently not supported:
+// Currently not supported features:
+// - prefixed_enums (only scoped enums)
 // - Flexbuffers
+// - Mini-Reflection
+// - hash-based references, attributes 'hash' and 'cpp_type'
 // - attribute 'id'
 // - attribute 'nested_flatbuffer'
+// - attribute 'force_align'
+// - attribute 'shared'
 
 // FBS file parsing:
 // An enum is made up of constant values, doesn't reference anything else.
 // A union can reference any struct or table, defined before or after the union.
 // A struct can only use scalars, fixed-size arrays, enums and other structs.
 // The enums and structs must have been defined before it.
-// A table can use scalars, fixed-size arrays, enums, unions, structs and other tables.
-// The enums and unions must have been defined before it, while the structs and tables
-// can be defined at any point.
-// The resulting optimal order for generating seems to be:
+// A table can use scalars, fixed-size arrays, enums, unions, structs and other
+// tables. The enums and unions must have been defined before it, while the
+// structs and tables can be defined at any point. The resulting optimal order
+// for generating seems to be:
 // - namespaces in order of declaration
 // - per namespace: enum, struct, union, table
 // - structs and tables must be forward declared for union use
@@ -50,6 +70,7 @@
 #include "flatbuffers/idl.h"
 #include "flatbuffers/util.h"
 
+#include <array>
 #include <fmt/format.h>
 #include <iostream>
 #include <type_traits>
@@ -58,10 +79,29 @@
 
 static constexpr const char *NAMESPACE_SEP{"::"};
 
+static constexpr std::array<const char *, 18> TYPE_NAMES = {{
+	"NONE",
+	"UTYPE",
+	"BOOL",
+	"CHAR",
+	"UCHAR",
+	"SHORT",
+	"USHORT",
+	"INT",
+	"UINT",
+	"LONG",
+	"ULONG",
+	"FLOAT",
+	"DOUBLE",
+	"STRING",
+	"VECTOR",
+	"STRUCT",
+	"UNION",
+	"ARRAY",
+}};
+
 namespace flatbuffers {
 namespace cppng {
-
-class LineEditor {};
 
 // We only support C++11 and newer in this generator.
 enum class CppStandard {
@@ -127,100 +167,106 @@ struct IDLOptionsCppNG : public IDLOptions {
 
 		// Features support: only scoped enums.
 		if (prefixed_enums || !scoped_enums) {
-			throw std::invalid_argument("Generator supports only C++ scoped enums, must pass --scoped-enums.");
-		}
-
-		std::cout << "project_root: " << project_root << std::endl;
-		std::cout << "indent_step: " << indent_step << std::endl;
-		std::cout << "root_type: " << root_type << std::endl;
-
-		std::cout << "include_prefix: " << include_prefix << std::endl;
-		std::cout << "keep_include_path: " << keep_include_path << std::endl;
-		std::cout << "cpp_direct_copy: " << cpp_direct_copy << std::endl;
-		std::cout << "include_dependence_headers: " << include_dependence_headers << std::endl;
-		std::cout << "mini_reflect: " << mini_reflect << std::endl;
-		std::cout << "set_empty_strings_to_null: " << set_empty_strings_to_null << std::endl;
-		std::cout << "set_empty_vectors_to_null: " << set_empty_vectors_to_null << std::endl;
-		for (const auto &inc : cpp_includes) {
-			std::cout << "cpp_include: " << inc << std::endl;
+			throw std::invalid_argument("Generator supports only C++ scoped enums, must pass "
+										"--scoped-enums.");
 		}
 	}
-};
-
-static constexpr const char *const TYPE_NAMES[] = {
-	"NONE",
-	"UTYPE",
-	"BOOL",
-	"CHAR",
-	"UCHAR",
-	"SHORT",
-	"USHORT",
-	"INT",
-	"UINT",
-	"LONG",
-	"ULONG",
-	"FLOAT",
-	"DOUBLE",
-	"STRING",
-	"VECTOR",
-	"STRUCT",
-	"UNION",
-	"ARRAY",
 };
 
 class CppGeneratorNG : public BaseGenerator {
 public:
 	CppGeneratorNG(
 		const Parser &parser, const std::string &path, const std::string &fileName, const IDLOptionsCppNG opts) :
-		BaseGenerator(parser, path, fileName, "", NAMESPACE_SEP, "hpp"),
-		mOptions(opts),
-		_mCurrentNamespace(nullptr),
-		_mFloatConstantGenerator(
-			"std::numeric_limits<double>::", "std::numeric_limits<float>::", "quiet_NaN()", "infinity()") {
+		BaseGenerator(parser, path, fileName, "", NAMESPACE_SEP, "hpp"), mOptions(opts) {
 		// Build list of namespaces.
 		// Empty namespace will be followed by all others in same order as declared.
 		for (const auto *ns : parser_.namespaces_) {
-			mNamespaces.emplace_back(ns);
-		}
+			CppNamespace cppns{ns};
 
-		// Each namespace can have associated structure definitions (structs/tables) and enum definitions (enum/union).
-		for (const auto *structDef : parser_.structs_.vec) {
-			const auto ns = getNamespaceName(structDef->defined_namespace);
+			// Each namespace can have associated structure definitions (structs/tables)
+			// and enum definitions (enum/union).
+			for (const auto *structDef : parser_.structs_.vec) {
+				// Skip structs from other flatbuffer files.
+				if (structDef->generated) {
+					continue;
+				}
 
-			if (structDef->fixed) {
-				// A struct of fixed size.
-				std::find(mNamespaces.begin(), mNamespaces.end(), ns)
-					->mStructs.emplace_back(structDef->name, structDef);
+				// Skip structs with a different namespace.
+				if (getNamespaceName(structDef->defined_namespace) != cppns.mFullName) {
+					continue;
+				}
+
+				if (structDef->fixed) {
+					// A struct of fixed size.
+					cppns.mStructs.emplace_back(structDef->name, structDef);
+				}
+				else {
+					// A flexible table.
+					cppns.mTables.emplace_back(structDef->name, structDef);
+				}
 			}
-			else {
-				// A flexible table.
-				std::find(mNamespaces.begin(), mNamespaces.end(), ns)->mTables.emplace_back(structDef->name, structDef);
-			}
-		}
 
-		for (const auto *enumDef : parser_.enums_.vec) {
-			const auto ns = getNamespaceName(enumDef->defined_namespace);
+			for (const auto *enumDef : parser_.enums_.vec) {
+				// Skip enums from other flatbuffer files.
+				if (enumDef->generated) {
+					continue;
+				}
 
-			if (enumDef->is_union) {
-				// Union type.
-				std::find(mNamespaces.begin(), mNamespaces.end(), ns)->mUnions.emplace_back(enumDef->name, enumDef);
+				// Skip enums with a different namespace.
+				if (getNamespaceName(enumDef->defined_namespace) != cppns.mFullName) {
+					continue;
+				}
+
+				if (enumDef->is_union) {
+					// Union type.
+					cppns.mUnions.emplace_back(enumDef->name, enumDef);
+				}
+				else {
+					// Enum type.
+					cppns.mEnums.emplace_back(enumDef->name, enumDef);
+				}
 			}
-			else {
-				// Enum type.
-				std::find(mNamespaces.begin(), mNamespaces.end(), ns)->mEnums.emplace_back(enumDef->name, enumDef);
+
+			// If namespace has no content, we can discard it. It probably
+			// came from an included file, which we don't need to repeat here.
+			if (!cppns.mStructs.empty() || !cppns.mTables.empty() || !cppns.mUnions.empty() || !cppns.mEnums.empty()) {
+				mNamespaces.push_back(std::move(cppns));
 			}
 		}
 	}
 
-	static std::string getNamespaceName(const Namespace *ns) {
-		assert(ns != nullptr);
-		return fmt::format("{}", fmt::join(ns->components.cbegin(), ns->components.cend(), NAMESPACE_SEP));
+	bool generate() override {
+		// Debug print everything.
+		traverse();
+
+		// Start code generation.
+		mCode.clear();
+		mCode += fmt::format("// {}\n\n", FlatBuffersGeneratedWarning());
+
+		// First thing: the include guard for this generated header file.
+		const auto filePath = GeneratedFileName(path_, file_name_, mOptions);
+		mCode += includeGuardOpenClose(filePath, true);
+
+		// Mark file content as system_header to avoid warnings.
+		// mCode += "#pragma GCC system_header\n";
+		// mCode += "#pragma clang system_header\n";
+
+		// Add includes.
+		generateIncludes();
+
+		// Generate forward declarations for tables and structs first.
+		// These are needed for referencing in unions, other structs and tables.
+		generateForwardDeclarations();
+
+		// Last thing: close the include guard for this generated header file.
+		mCode += includeGuardOpenClose(filePath, false);
+
+		// Save the file and optionally generate the binary schema code.
+		return SaveFile(filePath.c_str(), mCode, false);
 	}
 
-	const Namespace *CurrentNameSpace() const override {
-		return nullptr;
-	}
-
+private:
+	// DEBUG PRINT START
 	static std::string getNamespaceForPrint(const Namespace *ns) {
 		if (ns == nullptr) {
 			return "(undefined)";
@@ -250,7 +296,7 @@ public:
 		fmt::print("\n");
 	}
 
-	static void printDefinition(const Definition *def, const size_t indent) {
+	static void printDefinition(const Definition *def, size_t indent) {
 		fmt::print(FMT_INDENT("Name: {}"), def->name);
 		fmt::print(FMT_INDENT("File: {}"), def->file);
 		fmt::print(
@@ -259,8 +305,10 @@ public:
 		fmt::print(FMT_INDENT("Namespace: {}"), getNamespaceForPrint(def->defined_namespace));
 
 		fmt::print(FMT_INDENT("Attributes:"));
-		for (const auto *attr : def->attributes.vec) {
-			printValue(attr, indent + 4);
+		indent += 4;
+		for (const auto &attr : def->attributes.dict) {
+			fmt::print(FMT_INDENT("Name: {}"), attr.first);
+			printValue(attr.second, indent);
 		}
 	}
 
@@ -399,6 +447,7 @@ public:
 		fmt::print("Root struct definition:\n");
 		const auto rootStruct = parser_.root_struct_def_;
 		printStructDef(rootStruct, indent);
+		fmt::print("\n");
 
 		fmt::print("Namespaces:\n");
 		for (const auto &ns : parser_.namespaces_) {
@@ -406,69 +455,12 @@ public:
 		}
 		fmt::print("\n");
 
-		const auto currentNamespace = parser_.current_namespace_;
-		fmt::print("Current namespace: {}\n", getNamespaceForPrint(currentNamespace));
-
-		const auto emptyNamespace = parser_.empty_namespace_;
-		fmt::print("Empty namespace: {}\n", getNamespaceForPrint(emptyNamespace));
-
 		fmt::print("File identifier: {}\n", parser_.file_identifier_);
 		fmt::print("File extension: {}\n", parser_.file_extension_);
-
-		fmt::print("Included files:\n");
-		for (const auto &attr : parser_.included_files_) {
-			fmt::print(FMT_INDENT("{} = {}"), attr.first, attr.second);
-		}
-		fmt::print("\n");
-
-		fmt::print("Files included per file:\n");
-		for (const auto &attr : parser_.files_included_per_file_) {
-			fmt::print(FMT_INDENT("{} = {}"), attr.first, fmt::join(attr.second.cbegin(), attr.second.cend(), ", "));
-		}
-		fmt::print("\n");
-
-		fmt::print("Native include files:\n");
-		for (const auto &inc : parser_.native_included_files_) {
-			fmt::print(FMT_INDENT("{}"), inc);
-		}
-		fmt::print("\n");
-
-		fmt::print("Known attributes:\n");
-		for (const auto &attr : parser_.known_attributes_) {
-			fmt::print(FMT_INDENT("{} = {}"), attr.first, attr.second);
-		}
-		fmt::print("\n");
-
-		fmt::print("Advanced features: {}\n", parser_.advanced_features_);
 	}
 
-	bool generate() override {
-		// Debug print everything.
-		traverse();
+	// DEBUG PRINT END
 
-		std::string finalCode;
-
-		// Generate forward declarations for tables and structs first.
-		// These are needed for referencing in unions, other structs and tables.
-		for (const auto &ns : mNamespaces) {
-			finalCode += namespaceOpenClose(ns, true);
-			for (const auto &st : ns.mStructs) {
-				finalCode += fmt::format("struct {};\n", st.first);
-			}
-			for (const auto &st : ns.mTables) {
-				finalCode += fmt::format("struct {};\n", st.first);
-			}
-			finalCode += namespaceOpenClose(ns, false);
-			finalCode += '\n';
-		}
-
-		// Save the file and optionally generate the binary schema code.
-		const auto filePath = GeneratedFileName(path_, file_name_, mOptions);
-
-		return SaveFile(filePath.c_str(), finalCode, false);
-	}
-
-private:
 	struct CppNamespace {
 		std::string mFullName;
 		std::string mName;
@@ -479,6 +471,8 @@ private:
 		std::vector<std::pair<std::string, const EnumDef *>> mUnions;
 
 		CppNamespace(const Namespace *ns) {
+			assert(ns != nullptr);
+
 			mFullName       = getNamespaceName(ns);
 			mNameComponents = ns->components;
 
@@ -504,12 +498,138 @@ private:
 		}
 	};
 
+	static std::string getNamespaceName(const Namespace *ns) {
+		assert(ns != nullptr);
+		return fmt::format("{}", fmt::join(ns->components.cbegin(), ns->components.cend(), NAMESPACE_SEP));
+	}
+
 	const IDLOptionsCppNG mOptions;
 	std::vector<CppNamespace> mNamespaces;
+	std::string mCode;
 
-	// This tracks the current namespace so we can insert namespace declarations.
-	const Namespace *_mCurrentNamespace;
-	const TypedFloatConstantGenerator _mFloatConstantGenerator;
+	void generateIncludes() {
+		mCode += "// Header includes\n";
+		mCode += "#include \"flatbuffers/flatbuffers.h\"\n";
+
+		if (mOptions.include_dependence_headers) {
+			mCode += includeDependencies();
+		}
+
+		mCode += includeExtra();
+		mCode += '\n';
+	}
+
+	void generateForwardDeclarations() {
+		mCode += "// Forward declarations\n";
+
+		// Go through namespaces in order (see top comments about traversal order).
+		for (const auto &ns : mNamespaces) {
+			if (ns.mStructs.empty() && ns.mTables.empty()) {
+				// No structs or tables present, skip this namespace.
+				continue;
+			}
+
+			mCode += namespaceOpenClose(ns, true);
+
+			for (const auto &st : ns.mStructs) {
+				mCode += fmt::format("struct {};\n", className(st.second));
+			}
+			for (const auto &st : ns.mTables) {
+				mCode += fmt::format("struct {};\n", className(st.second));
+				mCode += fmt::format("struct {}Builder;\n", className(st.second));
+
+				if (mOptions.generate_object_based_api) {
+					mCode += fmt::format("struct {};\n", className(st.second, true));
+				}
+			}
+
+			mCode += namespaceOpenClose(ns, false);
+			mCode += '\n';
+		}
+	}
+
+	std::string className(const StructDef *structDef, const bool objectAPI = false) {
+		assert(structDef != nullptr);
+
+		// Structs have the same definition and thus name for both
+		// the normal flatbuffers API and the object API.
+		if (structDef->fixed) {
+			return structDef->name;
+		}
+
+		// Tables have different names, plus the option of adding
+		// prefixes and suffixes to them.
+		if (objectAPI) {
+			return mOptions.object_prefix + structDef->name + mOptions.object_suffix;
+		}
+		else {
+			return mOptions.flatbuffer_prefix + structDef->name + mOptions.flatbuffer_suffix;
+		}
+	}
+
+	std::string fullyQualifiedClassName(const StructDef *structDef, const bool objectAPI = false) {
+		assert(structDef != nullptr);
+		return getNamespaceName(structDef->defined_namespace) + qualifying_separator_ + className(structDef, objectAPI);
+	}
+
+	std::string includeGuardOpenClose(std::string guard, const bool open) {
+		// Posix file path components to _.
+		std::transform(guard.begin(), guard.end(), guard.begin(), [](const char c) {
+			return ((c == '.') || (c == '/')) ? ('_') : (c);
+		});
+
+		// Remove any non-alpha-numeric characters that may appear in a filename.
+		guard.erase(std::remove_if(guard.begin(), guard.end(),
+						[](const char c) {
+							return (!is_alnum(c) && (c != '_'));
+						}),
+			guard.end());
+
+		// By convention #define are all upper-case.
+		std::transform(guard.begin(), guard.end(), guard.begin(), CharToUpper);
+
+		return fmt::format((open) ? ("#ifndef FLATBUFFERS_GENERATED_{0}_\n"
+									 "#define FLATBUFFERS_GENERATED_{0}_\n\n")
+								  : ("#endif // FLATBUFFERS_GENERATED_{0}_\n"),
+			guard);
+	}
+
+	std::string includeDependencies() {
+		std::string includes;
+
+		for (const auto &inc : parser_.included_files_) {
+			if (inc.second.empty()) {
+				continue;
+			}
+
+			const auto noext       = flatbuffers::StripExtension(inc.second);
+			const auto basename    = flatbuffers::StripPath(noext);
+			const auto includeName = GeneratedFileName(
+				mOptions.include_prefix, (mOptions.keep_include_path) ? (noext) : (basename), mOptions);
+
+			includes += fmt::format("#include \"{}\"\n", includeName);
+		}
+
+		if (mOptions.generate_object_based_api) {
+			// Add native_includes if object API is enabled, as they're
+			// meant for the native types used therein.
+			for (const auto &inc : parser_.native_included_files_) {
+				includes += fmt::format("#include \"{}\"\n", inc);
+			}
+		}
+
+		return includes;
+	}
+
+	std::string includeExtra() {
+		std::string includes;
+
+		for (const auto &inc : mOptions.cpp_includes) {
+			includes += fmt::format("#include \"{}\"\n", inc);
+		}
+
+		return includes;
+	}
 
 	std::string namespaceOpenClose(const CppNamespace &ns, const bool open) {
 		// Global (empty) namespace is just nothing, else we'd create an
@@ -529,6 +649,12 @@ private:
 			// Newer C++ can do nested namespaces directly.
 			return fmt::format((open) ? ("namespace {} {{\n") : ("}} // namespace {}\n"), ns.mFullName);
 		}
+	}
+
+	std::string comment(const std::vector<std::string> &docComment) {
+		std::string comment;
+		GenComment(docComment, &comment, nullptr, "");
+		return comment;
 	}
 };
 
