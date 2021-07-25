@@ -1,5 +1,5 @@
 // Features we do support:
-// - scoped_enums (only supported enums)
+// -X scoped_enums (only supported enums)
 // -X include_dependence_headers
 // - mutable_buffer
 // - generate_name_strings
@@ -22,7 +22,7 @@
 // - cpp_static_reflection
 // - set_empty_strings_to_null
 // - set_empty_vectors_to_null
-// - attribute 'bit_flags'
+// -X attribute 'bit_flags'
 // - attribute 'cpp_ptr_type'
 // - attribute 'cpp_ptr_type_get'
 // - attribute 'cpp_str_type'
@@ -198,11 +198,11 @@ public:
 
 				if (structDef->fixed) {
 					// A struct of fixed size.
-					cppns.mStructs.emplace_back(structDef->name, structDef);
+					cppns.mStructs.push_back(structDef);
 				}
 				else {
 					// A flexible table.
-					cppns.mTables.emplace_back(structDef->name, structDef);
+					cppns.mTables.push_back(structDef);
 				}
 			}
 
@@ -219,11 +219,11 @@ public:
 
 				if (enumDef->is_union) {
 					// Union type.
-					cppns.mUnions.emplace_back(enumDef->name, enumDef);
+					cppns.mUnions.push_back(enumDef);
 				}
 				else {
 					// Enum type.
-					cppns.mEnums.emplace_back(enumDef->name, enumDef);
+					cppns.mEnums.push_back(enumDef);
 				}
 			}
 
@@ -457,9 +457,8 @@ private:
 		}
 
 		fmt::print("Root struct definition:\n");
-		const auto rootStruct = parser_.root_struct_def_;
-		printStructDef(rootStruct, indent);
-		fmt::print("\n");
+		// const auto rootStruct = parser_.root_struct_def_;
+		// printStructDef(rootStruct, indent);
 
 		fmt::print("Namespaces:\n");
 		for (const auto &ns : parser_.namespaces_) {
@@ -477,10 +476,10 @@ private:
 		std::string mFullName;
 		std::string mName;
 		std::vector<std::string> mNameComponents;
-		std::vector<std::pair<std::string, const StructDef *>> mStructs;
-		std::vector<std::pair<std::string, const StructDef *>> mTables;
-		std::vector<std::pair<std::string, const EnumDef *>> mEnums;
-		std::vector<std::pair<std::string, const EnumDef *>> mUnions;
+		std::vector<const StructDef *> mStructs;
+		std::vector<const StructDef *> mTables;
+		std::vector<const EnumDef *> mEnums;
+		std::vector<const EnumDef *> mUnions;
 
 		CppNamespace(const Namespace *ns) {
 			assert(ns != nullptr);
@@ -543,15 +542,15 @@ private:
 
 			mCode += namespaceOpenClose(ns, true);
 
-			for (const auto &st : ns.mStructs) {
-				mCode += fmt::format("struct {};\n", className(st.second));
+			for (const auto *st : ns.mStructs) {
+				mCode += fmt::format("struct {};\n", className(st));
 			}
-			for (const auto &st : ns.mTables) {
-				mCode += fmt::format("struct {};\n", className(st.second));
-				mCode += fmt::format("struct {}Builder;\n", className(st.second));
+			for (const auto *st : ns.mTables) {
+				mCode += fmt::format("struct {};\n", className(st));
+				mCode += fmt::format("struct {}Builder;\n", className(st));
 
 				if (mOptions.generate_object_based_api) {
-					mCode += fmt::format("struct {};\n", className(st.second, true));
+					mCode += fmt::format("struct {};\n", className(st, true));
 				}
 			}
 
@@ -561,15 +560,32 @@ private:
 	}
 
 	void generateScopedEnums() {
+		mCode += "// Scoped enumerations\n";
 
+		// Go through namespaces in order (see top comments about traversal order).
+		for (const auto &ns : mNamespaces) {
+			if (ns.mEnums.empty()) {
+				// No enumerations present, skip this namespace.
+				continue;
+			}
+
+			mCode += namespaceOpenClose(ns, true);
+
+			for (const auto *en : ns.mEnums) {
+				mCode += scopedEnumeration(en);
+			}
+
+			mCode += namespaceOpenClose(ns, false);
+			mCode += '\n';
+		}
 	}
 
 	void generateFixedStructs() {
-
+		// TODO: implement.
 	}
 
 	void generateTables() {
-
+		// TODO: implement.
 	}
 
 	std::string className(const StructDef *structDef, const bool objectAPI = false) {
@@ -659,7 +675,7 @@ private:
 		// Global (empty) namespace is just nothing, else we'd create an
 		// unnamed namespace and we don't want that.
 		if (ns.mFullName.empty()) {
-			return "\n";
+			return "";
 		}
 
 		if (mOptions.mCppStandard == CppStandard::CPP_11) {
@@ -679,6 +695,183 @@ private:
 		std::string comment;
 		GenComment(docComment, &comment, nullptr, "");
 		return comment;
+	}
+
+	std::string baseType(const Type *type, const Definition *definition = nullptr) {
+		assert(type != nullptr);
+
+		static const char *const cppTypeName[] = {
+#define FLATBUFFERS_TD(ENUM, IDLTYPE, CTYPE, ...) #CTYPE,
+			FLATBUFFERS_GEN_TYPES(FLATBUFFERS_TD)
+#undef FLATBUFFERS_TD
+		};
+
+		// If scalar, type is easy. Else use fully-qualified name.
+		switch (type->base_type) {
+			case BASE_TYPE_BOOL:
+				return "bool";
+
+			case BASE_TYPE_UTYPE:
+			case BASE_TYPE_CHAR:
+			case BASE_TYPE_UCHAR:
+			case BASE_TYPE_SHORT:
+			case BASE_TYPE_USHORT:
+			case BASE_TYPE_INT:
+			case BASE_TYPE_UINT:
+			case BASE_TYPE_LONG:
+			case BASE_TYPE_ULONG:
+			case BASE_TYPE_FLOAT:
+			case BASE_TYPE_DOUBLE:
+				return cppTypeName[type->base_type];
+
+			case BASE_TYPE_STRING:
+				return stringType(definition);
+
+			case BASE_TYPE_VECTOR:
+				return vectorType(definition);
+
+			case BASE_TYPE_STRUCT:
+			case BASE_TYPE_UNION:
+			case BASE_TYPE_ARRAY:
+				// TODO: implement.
+				throw std::out_of_range("NOT IMPLEMENTED.");
+
+			case BASE_TYPE_NONE:
+			default:
+				throw std::out_of_range("Invalid baseType() call.");
+		}
+	}
+
+	std::string stringType(const Definition *definition) {
+		return attributeValue(definition, "cpp_str_type", BASE_TYPE_STRING, mOptions.cpp_object_api_string_type);
+	}
+
+	std::string vectorType(const Definition *definition) {
+		return attributeValue(definition, "cpp_vec_type", BASE_TYPE_STRING, mOptions.cpp_object_api_vector_type);
+	}
+
+	bool attributeExists(const Definition *definition, const std::string &name, const BaseType type = BASE_TYPE_NONE) {
+		if (definition == nullptr) {
+			return false;
+		}
+
+		const auto result = definition->attributes.Lookup(name);
+		if ((result == nullptr) || ((type != BASE_TYPE_NONE) && (result->type.base_type != type))) {
+			return false;
+		}
+
+		return true;
+	}
+
+	std::string attributeValue(const Definition *definition, const std::string &name, const BaseType type,
+		const std::string &defaultOnFailure) {
+		if (attributeExists(definition, name, type)) {
+			return definition->attributes.Lookup(name)->constant;
+		}
+
+		return defaultOnFailure;
+	}
+
+	std::string enumName(const EnumDef *enumDef) {
+		assert(enumDef != nullptr);
+		return enumDef->name;
+	}
+
+	std::string fullyQualifiedEnumName(const EnumDef *enumDef) {
+		assert(enumDef != nullptr);
+		return getNamespaceName(enumDef->defined_namespace) + qualifying_separator_ + enumName(enumDef);
+	}
+
+	std::string numericLiteral(const std::string &literal, const BaseType type) {
+		switch (type) {
+			case BASE_TYPE_UINT:
+				return literal + "U";
+
+			case BASE_TYPE_LONG:
+				return literal + "LL";
+
+			case BASE_TYPE_ULONG:
+				return literal + "LLU";
+
+			case BASE_TYPE_FLOAT:
+				return literal + "F";
+
+			default:
+				return literal;
+		}
+	}
+
+	std::string scopedEnumeration(const EnumDef *enumDef) {
+		assert(enumDef != nullptr);
+
+		// bit_flags attribute: each enum value is 2^N and can thus be used
+		// directly as a flag for bitwise operations. MIN/MAX make no sense,
+		// but we can declare additional operators with a Flatbuffer macro.
+		const auto bitFlags = attributeExists(enumDef, "bit_flags");
+
+		std::string enumeration = comment(enumDef->doc_comment);
+
+		enumeration += fmt::format("enum class {} : {} {{\n", enumName(enumDef), baseType(&enumDef->underlying_type));
+
+		for (const auto *enumVal : enumDef->Vals()) {
+			enumeration += fmt::format("{}{} = {},\n", comment(enumVal->doc_comment), enumVal->name,
+				numericLiteral(enumDef->ToString(*enumVal), enumDef->underlying_type.base_type));
+		}
+
+		if (bitFlags) {
+			// NONE/ANY enumerations for convenience (all bits off -> zero, all bits on -> sum).
+			enumeration += "NONE = 0,\n";
+			enumeration += fmt::format("ANY = {},\n", enumDef->AllFlags());
+		}
+		else {
+			// MIN/MAX enumerations for convenience.
+			enumeration += fmt::format("MIN = {},\n", enumDef->MinValue()->name);
+			enumeration += fmt::format("MAX = {},\n", enumDef->MaxValue()->name);
+		}
+
+		enumeration += fmt::format("}}; // enum {}\n", enumName(enumDef));
+		enumeration += '\n';
+
+		if (bitFlags) {
+			enumeration += fmt::format("FLATBUFFERS_DEFINE_BITMASK_OPERATORS({}, {})\n",
+				fullyQualifiedEnumName(enumDef), baseType(&enumDef->underlying_type));
+			enumeration += '\n';
+		}
+
+		// Functions to introspect the enumeration: get values, names and name(E).
+		enumeration += fmt::format("constexpr std::array<{}, {}> EnumValues{}() {{\n", fullyQualifiedEnumName(enumDef),
+			enumDef->size(), enumName(enumDef));
+		enumeration += fmt::format(
+			"constexpr std::array<{}, {}> values = {{{{\n", fullyQualifiedEnumName(enumDef), enumDef->size());
+		for (const auto *enumVal : enumDef->Vals()) {
+			enumeration += fmt::format("{}::{},\n", fullyQualifiedEnumName(enumDef), enumVal->name);
+		}
+		enumeration += "}};\nreturn values;\n}\n";
+
+		enumeration += fmt::format("constexpr std::array<{}, {}> EnumNames{}() {{\n", constexprStringType(),
+			enumDef->size(), enumName(enumDef));
+		enumeration
+			+= fmt::format("constexpr std::array<{}, {}> names = {{{{\n", constexprStringType(), enumDef->size());
+		for (const auto *enumVal : enumDef->Vals()) {
+			enumeration += fmt::format("\"{}\",\n", enumVal->name);
+		}
+		enumeration += "}};\nreturn names;\n}\n";
+
+		enumeration += fmt::format("constexpr {} EnumName{}(const {} e) {{\n", constexprStringType(), enumName(enumDef),
+			fullyQualifiedEnumName(enumDef));
+		enumeration += "switch (e) {\n";
+		size_t counter = 0;
+		for (const auto *enumVal : enumDef->Vals()) {
+			enumeration += fmt::format("case {}::{}:\nreturn EnumNames{}()[{}];\n", fullyQualifiedEnumName(enumDef),
+				enumVal->name, enumName(enumDef), counter++);
+		}
+		enumeration += "default:\nreturn \"\";\n}\n}\n";
+
+		return enumeration;
+	}
+
+	std::string constexprStringType() {
+		return (mOptions.mCppStandard == CppStandard::CPP_11) ? ("const char *") : ("std::string_view");
 	}
 };
 
