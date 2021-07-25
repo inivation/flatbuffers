@@ -11,7 +11,6 @@
 // - cpp_object_api_vector_type
 // - cpp_object_api_field_case_style
 // - cpp_direct_copy
-// - gen_nullable
 // -X object_prefix
 // -X object_suffix
 // -X flatbuffer_prefix
@@ -41,6 +40,7 @@
 //
 // Currently not supported features:
 // - prefixed_enums (only scoped enums)
+// - gen_nullable
 // - Flexbuffers
 // - Mini-Reflection
 // - hash-based references, attributes 'hash' and 'cpp_type'
@@ -257,6 +257,18 @@ public:
 		// Generate forward declarations for tables and structs first.
 		// These are needed for referencing in unions, other structs and tables.
 		generateForwardDeclarations();
+
+		// Generate enums first of the main types, as they act like constants
+		// that are re-used by the others.
+		generateScopedEnums();
+
+		// Generate structs next, these are fixed size, unchanging and all their
+		// components must already be declared (see 'FBS file parsing' at top).
+		generateFixedStructs();
+
+		// And then the more complex tables, which can refer to tables fully
+		// defined after them (not structs as we generate them all above).
+		generateTables();
 
 		// Last thing: close the include guard for this generated header file.
 		mCode += includeGuardOpenClose(filePath, false);
@@ -546,6 +558,18 @@ private:
 			mCode += namespaceOpenClose(ns, false);
 			mCode += '\n';
 		}
+	}
+
+	void generateScopedEnums() {
+
+	}
+
+	void generateFixedStructs() {
+
+	}
+
+	void generateTables() {
+
 	}
 
 	std::string className(const StructDef *structDef, const bool objectAPI = false) {
