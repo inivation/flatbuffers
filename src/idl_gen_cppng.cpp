@@ -1,8 +1,8 @@
 // Features we do support:
 // -X scoped_enums (only supported enums)
 // -X include_dependence_headers
-// - mutable_buffer
-// - generate_name_strings
+// -? mutable_buffer
+// -? generate_name_strings
 // - generate_object_based_api
 // - gen_compare
 // - cpp_object_api_pointer_type
@@ -10,7 +10,7 @@
 // - cpp_object_api_string_flexible_constructor
 // - cpp_object_api_vector_type
 // - cpp_object_api_field_case_style
-// - cpp_direct_copy
+// -? cpp_direct_copy
 // -X object_prefix
 // -X object_suffix
 // -X flatbuffer_prefix
@@ -30,7 +30,6 @@
 // - attribute 'cpp_vec_type'
 // - attribute 'required'
 // - attribute 'deprecated'
-// - attribute 'key'
 // - attribute 'native_inline'
 // - attribute 'native_default'
 // - attribute 'native_custom_alloc'
@@ -45,22 +44,24 @@
 // - Mini-Reflection
 // - hash-based references, attributes 'hash' and 'cpp_type'
 // - attribute 'id'
+// - attribute 'key'
+// - attribute 'shared'
 // - attribute 'nested_flatbuffer'
 // - attribute 'force_align'
-// - attribute 'shared'
 
 // FBS file parsing:
 // An enum is made up of constant values, doesn't reference anything else.
 // A union can reference any struct or table, defined before or after the union.
-// A struct can only use scalars, fixed-size arrays, enums and other structs.
-// The enums and structs must have been defined before it.
-// A table can use scalars, fixed-size arrays, enums, unions, structs and other
-// tables. The enums and unions must have been defined before it, while the
-// structs and tables can be defined at any point. The resulting optimal order
-// for generating seems to be:
+// A struct can only use scalars, enums, other structs and arrays thereof.
+// The enums and structs must have been defined beforehand.
+// A table can use scalars, enums, unions, strings, structs and other
+// tables as well as vectors thereof.
+// The enums and unions must have been defined before it, while the
+// structs and tables can be defined at any point
+// The resulting optimal order for generating seems to be:
 // - namespaces in order of declaration
-// - per namespace: enum, struct, union, table
-// - structs and tables must be forward declared for union use
+// - per namespace: enum (including union types), struct, table
+// - structs and tables must be forward declared for later use
 
 #define FMT_HEADER_ONLY 1
 
@@ -105,6 +106,12 @@ static constexpr std::array<const char *, 18> TYPE_NAMES = {{
 	"STRUCT",
 	"UNION",
 	"ARRAY",
+}};
+
+static constexpr std::array<const char *, 18> FLATBUFFERS_CPP_TYPES = {{
+#define FLATBUFFERS_TD(ENUM, IDLTYPE, CTYPE, ...) #CTYPE,
+	FLATBUFFERS_GEN_TYPES(FLATBUFFERS_TD)
+#undef FLATBUFFERS_TD
 }};
 
 namespace flatbuffers {
@@ -567,12 +574,12 @@ private:
 			for (const auto *st : ns.mStructs) {
 				mCode += fmt::format("struct {};\n", className(st));
 			}
-			for (const auto *st : ns.mTables) {
-				mCode += fmt::format("struct {};\n", className(st));
-				mCode += fmt::format("struct {}Builder;\n", className(st));
+			for (const auto *tb : ns.mTables) {
+				mCode += fmt::format("struct {};\n", className(tb));
+				mCode += fmt::format("struct {}Builder;\n", className(tb));
 
 				if (mOptions.generate_object_based_api) {
-					mCode += fmt::format("struct {};\n", className(st, true));
+					mCode += fmt::format("struct {};\n", className(tb, true));
 				}
 			}
 
@@ -582,11 +589,11 @@ private:
 	}
 
 	void generateScopedEnums() {
-		mCode += "// Scoped enumerations\n";
+		mCode += "// Scoped enumerations (including union types)\n";
 
 		// Go through namespaces in order (see top comments about traversal order).
 		for (const auto &ns : mNamespaces) {
-			if (ns.mEnums.empty()) {
+			if (ns.mEnums.empty() && ns.mUnions.empty()) {
 				// No enumerations present, skip this namespace.
 				continue;
 			}
@@ -596,6 +603,9 @@ private:
 			for (const auto *en : ns.mEnums) {
 				mCode += scopedEnumeration(en);
 			}
+			for (const auto *un : ns.mUnions) {
+				mCode += scopedEnumeration(un);
+			}
 
 			mCode += namespaceOpenClose(ns, false);
 			mCode += '\n';
@@ -603,7 +613,24 @@ private:
 	}
 
 	void generateFixedStructs() {
-		// TODO: implement.
+		mCode += "// Fixed size structs\n";
+
+		// Go through namespaces in order (see top comments about traversal order).
+		for (const auto &ns : mNamespaces) {
+			if (ns.mStructs.empty()) {
+				// No fixed-size structs present, skip this namespace.
+				continue;
+			}
+
+			mCode += namespaceOpenClose(ns, true);
+
+			for (const auto *st : ns.mStructs) {
+				mCode += fixedSizeStruct(st);
+			}
+
+			mCode += namespaceOpenClose(ns, false);
+			mCode += '\n';
+		}
 	}
 
 	void generateTables() {
@@ -722,12 +749,6 @@ private:
 	std::string baseType(const Type *type, const Definition *definition = nullptr) {
 		assert(type != nullptr);
 
-		static const char *const cppTypeName[] = {
-#define FLATBUFFERS_TD(ENUM, IDLTYPE, CTYPE, ...) #CTYPE,
-			FLATBUFFERS_GEN_TYPES(FLATBUFFERS_TD)
-#undef FLATBUFFERS_TD
-		};
-
 		// If scalar, type is easy. Else use fully-qualified name.
 		switch (type->base_type) {
 			case BASE_TYPE_BOOL:
@@ -744,7 +765,7 @@ private:
 			case BASE_TYPE_ULONG:
 			case BASE_TYPE_FLOAT:
 			case BASE_TYPE_DOUBLE:
-				return cppTypeName[type->base_type];
+				return FLATBUFFERS_CPP_TYPES[type->base_type];
 
 			case BASE_TYPE_STRING:
 				return stringType(definition);
@@ -752,9 +773,9 @@ private:
 			case BASE_TYPE_VECTOR:
 				return vectorType(definition);
 
+			case BASE_TYPE_ARRAY:
 			case BASE_TYPE_STRUCT:
 			case BASE_TYPE_UNION:
-			case BASE_TYPE_ARRAY:
 				// TODO: implement.
 				throw std::out_of_range("NOT IMPLEMENTED.");
 
@@ -913,6 +934,75 @@ private:
 	std::string constexprStringType() {
 		// C++17 introduces constexpr std::string_view.
 		return (mOptions.mCppStandard < CppStandard::CPP_17) ? ("const char *") : ("std::string_view");
+	}
+
+	std::string fixedSizeStruct(const StructDef *structDef) {
+		assert(structDef != nullptr);
+
+		std::string structure = comment(structDef->doc_comment);
+
+		structure += fmt::format(
+			"FLATBUFFERS_MANUALLY_ALIGNED_STRUCT({}) {} final {{\n", structDef->minalign, className(structDef));
+		structure += "private:\n";
+		for (const auto *field : structDef->fields.vec) {
+			structure += structMember(field);
+		}
+		structure += '\n';
+		structure += "public:\n";
+		structure += "};\n";
+		structure += fmt::format("FLATBUFFERS_STRUCT_END({}, {});\n", className(structDef), structDef->bytesize);
+		structure += '\n';
+
+		return structure;
+	}
+
+	std::string structMember(const FieldDef *fieldDef) {
+		assert(fieldDef != nullptr);
+
+		std::string field = comment(fieldDef->doc_comment);
+
+		// Fields in structs can be: scalars, other structs, enums and fixed-length arrays of each of those.
+		// Padding must be added if needed to get the struct size correct.
+		// No defaults for values are supported, nor any attributes really.
+		const auto type = fieldDef->value.type;
+
+		if (IsArray(type)) {
+			const auto typeName = (type.element == BASE_TYPE_STRUCT) ? (fullyQualifiedClassName(type.struct_def))
+																	 : (FLATBUFFERS_CPP_TYPES[type.element]);
+
+			field += fmt::format("{} {}[{}];\n", typeName, fieldDef->name, type.fixed_length);
+		}
+		else {
+			const auto typeName = (type.base_type == BASE_TYPE_STRUCT) ? (fullyQualifiedClassName(type.struct_def))
+																	   : (FLATBUFFERS_CPP_TYPES[type.base_type]);
+
+			field += fmt::format("{} {};\n", typeName, fieldDef->name);
+		}
+
+		// Apply padding requirement.
+		if (fieldDef->padding != 0) {
+			size_t padding = fieldDef->padding;
+			size_t counter = 0;
+
+			if (padding & 0x01) {
+				field += fmt::format("int8_t padding_{}_{};\n", fieldDef->name, counter++);
+				padding -= 1;
+			}
+			if (padding & 0x02) {
+				field += fmt::format("int16_t padding_{}_{};\n", fieldDef->name, counter++);
+				padding -= 2;
+			}
+			if (padding & 0x04) {
+				field += fmt::format("int32_t padding_{}_{};\n", fieldDef->name, counter++);
+				padding -= 4;
+			}
+			while (padding != 0) {
+				field += fmt::format("int64_t padding_{}_{};\n", fieldDef->name, counter++);
+				padding -= 8;
+			}
+		}
+
+		return field;
 	}
 };
 
