@@ -75,6 +75,8 @@
 #include <iostream>
 #include <type_traits>
 
+using namespace fmt::literals;
+
 #define FMT_INDENT(STR) "{:{}}" STR "\n", "", indent
 
 static constexpr const char *NAMESPACE_SEP{"::"};
@@ -830,42 +832,60 @@ private:
 		}
 
 		enumeration += fmt::format("}}; // enum {}\n", enumName(enumDef));
-		enumeration += '\n';
-
 		if (bitFlags) {
 			enumeration += fmt::format("FLATBUFFERS_DEFINE_BITMASK_OPERATORS({}, {})\n",
 				fullyQualifiedEnumName(enumDef), baseType(&enumDef->underlying_type));
-			enumeration += '\n';
 		}
+		enumeration += '\n';
 
 		// Functions to introspect the enumeration: get values, names and name(E).
-		enumeration += fmt::format("constexpr std::array<{}, {}> EnumValues{}() {{\n", fullyQualifiedEnumName(enumDef),
-			enumDef->size(), enumName(enumDef));
-		enumeration += fmt::format(
-			"constexpr std::array<{}, {}> values = {{{{\n", fullyQualifiedEnumName(enumDef), enumDef->size());
+		std::string enumValues;
 		for (const auto *enumVal : enumDef->Vals()) {
-			enumeration += fmt::format("{}::{},\n", fullyQualifiedEnumName(enumDef), enumVal->name);
+			enumValues += fmt::format("{}::{},\n", fullyQualifiedEnumName(enumDef), enumVal->name);
 		}
-		enumeration += "}};\nreturn values;\n}\n";
 
-		enumeration += fmt::format("constexpr std::array<{}, {}> EnumNames{}() {{\n", constexprStringType(),
-			enumDef->size(), enumName(enumDef));
-		enumeration
-			+= fmt::format("constexpr std::array<{}, {}> names = {{{{\n", constexprStringType(), enumDef->size());
+		enumeration += fmt::format("constexpr std::array<{enumType}, {enumNumElements}> EnumValues{enumName}() {{\n"
+								   "  constexpr std::array<{enumType}, {enumNumElements}> values = {{{{\n"
+								   "    {enumValues}"
+								   "  }}}};\n"
+								   "  return values;\n"
+								   "}}\n",
+			"enumType"_a = fullyQualifiedEnumName(enumDef), "enumName"_a = enumName(enumDef),
+			"enumNumElements"_a = enumDef->size(), "enumValues"_a = enumValues);
+		enumeration += '\n';
+
+		std::string enumNames;
 		for (const auto *enumVal : enumDef->Vals()) {
-			enumeration += fmt::format("\"{}\",\n", enumVal->name);
+			enumNames += fmt::format("\"{}\",\n", enumVal->name);
 		}
-		enumeration += "}};\nreturn names;\n}\n";
 
-		enumeration += fmt::format("constexpr {} EnumName{}(const {} e) {{\n", constexprStringType(), enumName(enumDef),
-			fullyQualifiedEnumName(enumDef));
-		enumeration += "switch (e) {\n";
+		enumeration += fmt::format("constexpr std::array<{stringType}, {enumNumElements}> EnumNames{enumName}() {{\n"
+								   "  constexpr std::array<{stringType}, {enumNumElements}> names = {{{{\n"
+								   "    {enumNames}"
+								   "  }}}};\n"
+								   "  return names;\n"
+								   "}}\n",
+			"stringType"_a = constexprStringType(), "enumName"_a = enumName(enumDef),
+			"enumNumElements"_a = enumDef->size(), "enumNames"_a = enumNames);
+		enumeration += '\n';
+
+		std::string nameLookup;
 		size_t counter = 0;
 		for (const auto *enumVal : enumDef->Vals()) {
-			enumeration += fmt::format("case {}::{}:\nreturn EnumNames{}()[{}];\n", fullyQualifiedEnumName(enumDef),
-				enumVal->name, enumName(enumDef), counter++);
+			nameLookup += fmt::format("case {}::{}:\n"
+									  "  return EnumNames{}()[{}];\n",
+				fullyQualifiedEnumName(enumDef), enumVal->name, enumName(enumDef), counter++);
 		}
-		enumeration += "default:\nreturn \"\";\n}\n}\n";
+
+		enumeration += fmt::format("constexpr {stringType} EnumName{enumName}(const {enumType} e) {{\n"
+								   "  switch (e) {{\n"
+								   "    {enumLookupCases}"
+								   "    default:\n"
+								   "      return \"\";\n"
+								   "  }}\n"
+								   "}}\n",
+			"stringType"_a = constexprStringType(), "enumName"_a = enumName(enumDef),
+			"enumType"_a = fullyQualifiedEnumName(enumDef), "enumLookupCases"_a = nameLookup);
 
 		return enumeration;
 	}
