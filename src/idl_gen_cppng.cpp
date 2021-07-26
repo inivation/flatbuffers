@@ -81,6 +81,11 @@ using namespace fmt::literals;
 
 static constexpr const char *NAMESPACE_SEP{"::"};
 
+template<typename Enumeration, typename std::enable_if<std::is_enum<Enumeration>::value, bool>::type = true>
+constexpr typename std::underlying_type<Enumeration>::type EnumAsInteger(const Enumeration value) noexcept {
+	return static_cast<typename std::underlying_type<Enumeration>::type>(value);
+}
+
 static constexpr std::array<const char *, 18> TYPE_NAMES = {{
 	"NONE",
 	"UTYPE",
@@ -112,15 +117,30 @@ enum class CppStandard {
 	CPP_20 = 20,
 };
 
-// Define a style of 'struct' constructor if it has 'Array' fields.
-enum class GenArrayArgMode {
-	None,       // don't generate initialization args
-	SpanStatic, // generate flatbuffers::span<T,N>
-};
+// Comparison operators.
+inline bool operator==(const CppStandard lhs, const CppStandard rhs) {
+	return (lhs == rhs);
+}
 
-template<typename Enumeration, typename std::enable_if<std::is_enum<Enumeration>::value, bool>::type = true>
-constexpr typename std::underlying_type<Enumeration>::type EnumAsInteger(const Enumeration value) noexcept {
-	return static_cast<typename std::underlying_type<Enumeration>::type>(value);
+inline bool operator<(const CppStandard lhs, const CppStandard rhs) {
+	// Look at it as its underlying integer here.
+	return (EnumAsInteger(lhs) < EnumAsInteger(rhs));
+}
+
+inline bool operator!=(const CppStandard lhs, const CppStandard rhs) {
+	return (!operator==(lhs, rhs));
+}
+
+inline bool operator<=(const CppStandard lhs, const CppStandard rhs) {
+	return (operator<(lhs, rhs) || operator==(lhs, rhs));
+}
+
+inline bool operator>(const CppStandard lhs, const CppStandard rhs) {
+	return ((!operator<(lhs, rhs)) && (!operator==(lhs, rhs)));
+}
+
+inline bool operator>=(const CppStandard lhs, const CppStandard rhs) {
+	return (!operator<(lhs, rhs));
 }
 
 // Extension of IDLOptions for cpp-generator.
@@ -163,7 +183,7 @@ struct IDLOptionsCppNG : public IDLOptions {
 			throw std::invalid_argument("Unknown value of the '--cpp-std' switch: " + opts.cpp_std);
 		}
 
-		if (cpp_static_reflection && (EnumAsInteger(mCppStandard) < EnumAsInteger(CppStandard::CPP_17))) {
+		if (cpp_static_reflection && (mCppStandard < CppStandard::CPP_17)) {
 			throw std::out_of_range("--cpp-static-reflection requires using --cpp-std 17 or higher.");
 		}
 
@@ -680,7 +700,7 @@ private:
 			return "";
 		}
 
-		if (mOptions.mCppStandard == CppStandard::CPP_11) {
+		if (mOptions.mCppStandard < CppStandard::CPP_17) {
 			std::string nsString;
 			for (const auto &component : ns.mNameComponents) {
 				nsString += fmt::format((open) ? ("namespace {} {{\n") : ("}} // namespace {}\n"), component);
@@ -688,7 +708,7 @@ private:
 			return nsString;
 		}
 		else {
-			// Newer C++ can do nested namespaces directly.
+			// C++17 and newer can do nested namespaces directly.
 			return fmt::format((open) ? ("namespace {} {{\n") : ("}} // namespace {}\n"), ns.mFullName);
 		}
 	}
@@ -891,7 +911,8 @@ private:
 	}
 
 	std::string constexprStringType() {
-		return (mOptions.mCppStandard == CppStandard::CPP_11) ? ("const char *") : ("std::string_view");
+		// C++17 introduces constexpr std::string_view.
+		return (mOptions.mCppStandard < CppStandard::CPP_17) ? ("const char *") : ("std::string_view");
 	}
 };
 
