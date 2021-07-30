@@ -740,49 +740,10 @@ private:
 		}
 	}
 
-	std::string comment(const std::vector<std::string> &docComment) {
+	static std::string comment(const std::vector<std::string> &docComment) {
 		std::string comment;
 		GenComment(docComment, &comment, nullptr, "");
 		return comment;
-	}
-
-	std::string baseType(const Type *type, const Definition *definition = nullptr) {
-		assert(type != nullptr);
-
-		// If scalar, type is easy. Else use fully-qualified name.
-		switch (type->base_type) {
-			case BASE_TYPE_BOOL:
-				return "bool";
-
-			case BASE_TYPE_UTYPE:
-			case BASE_TYPE_CHAR:
-			case BASE_TYPE_UCHAR:
-			case BASE_TYPE_SHORT:
-			case BASE_TYPE_USHORT:
-			case BASE_TYPE_INT:
-			case BASE_TYPE_UINT:
-			case BASE_TYPE_LONG:
-			case BASE_TYPE_ULONG:
-			case BASE_TYPE_FLOAT:
-			case BASE_TYPE_DOUBLE:
-				return FLATBUFFERS_CPP_TYPES[type->base_type];
-
-			case BASE_TYPE_STRING:
-				return stringType(definition);
-
-			case BASE_TYPE_VECTOR:
-				return vectorType(definition);
-
-			case BASE_TYPE_ARRAY:
-			case BASE_TYPE_STRUCT:
-			case BASE_TYPE_UNION:
-				// TODO: implement.
-				throw std::out_of_range("NOT IMPLEMENTED.");
-
-			case BASE_TYPE_NONE:
-			default:
-				throw std::out_of_range("Invalid baseType() call.");
-		}
 	}
 
 	std::string stringType(const Definition *definition) {
@@ -793,7 +754,16 @@ private:
 		return attributeValue(definition, "cpp_vec_type", BASE_TYPE_STRING, mOptions.cpp_object_api_vector_type);
 	}
 
-	bool attributeExists(const Definition *definition, const std::string &name, const BaseType type = BASE_TYPE_NONE) {
+	std::string pointerType(const Definition *definition) {
+		return attributeValue(definition, "cpp_ptr_type", BASE_TYPE_STRING, mOptions.cpp_object_api_pointer_type);
+	}
+
+	std::string pointerTypeGetter(const Definition *definition) {
+		return attributeValue(definition, "cpp_ptr_type_get", BASE_TYPE_STRING, ".get()");
+	}
+
+	static bool attributeExists(
+		const Definition *definition, const std::string &name, const BaseType type = BASE_TYPE_NONE) {
 		if (definition == nullptr) {
 			return false;
 		}
@@ -806,7 +776,7 @@ private:
 		return true;
 	}
 
-	std::string attributeValue(const Definition *definition, const std::string &name, const BaseType type,
+	static std::string attributeValue(const Definition *definition, const std::string &name, const BaseType type,
 		const std::string &defaultOnFailure) {
 		if (attributeExists(definition, name, type)) {
 			return definition->attributes.Lookup(name)->constant;
@@ -815,17 +785,17 @@ private:
 		return defaultOnFailure;
 	}
 
-	std::string enumName(const EnumDef *enumDef) {
+	static std::string enumName(const EnumDef *enumDef) {
 		assert(enumDef != nullptr);
 		return enumDef->name;
 	}
 
-	std::string fullyQualifiedEnumName(const EnumDef *enumDef) {
+	static std::string fullyQualifiedEnumName(const EnumDef *enumDef) {
 		assert(enumDef != nullptr);
-		return getNamespaceName(enumDef->defined_namespace) + qualifying_separator_ + enumName(enumDef);
+		return getNamespaceName(enumDef->defined_namespace) + NAMESPACE_SEP + enumName(enumDef);
 	}
 
-	std::string numericLiteral(const std::string &literal, const BaseType type) {
+	static std::string numericLiteral(const std::string &literal, const BaseType type) {
 		switch (type) {
 			case BASE_TYPE_UINT:
 				return literal + "U";
@@ -854,7 +824,8 @@ private:
 
 		std::string enumeration = comment(enumDef->doc_comment);
 
-		enumeration += fmt::format("enum class {} : {} {{\n", enumName(enumDef), baseType(&enumDef->underlying_type));
+		enumeration
+			+= fmt::format("enum class {} : {} {{\n", enumName(enumDef), scalarTypeToString(enumDef->underlying_type));
 
 		for (const auto *enumVal : enumDef->Vals()) {
 			enumeration += fmt::format("{}{} = {},\n", comment(enumVal->doc_comment), enumVal->name,
@@ -875,7 +846,7 @@ private:
 		enumeration += fmt::format("}}; // enum {}\n", enumName(enumDef));
 		if (bitFlags) {
 			enumeration += fmt::format("FLATBUFFERS_DEFINE_BITMASK_OPERATORS({}, {})\n",
-				fullyQualifiedEnumName(enumDef), baseType(&enumDef->underlying_type));
+				fullyQualifiedEnumName(enumDef), scalarTypeToString(enumDef->underlying_type));
 		}
 		enumeration += '\n';
 
@@ -966,18 +937,7 @@ private:
 		// No defaults for values are supported, nor any attributes really.
 		const auto type = fieldDef->value.type;
 
-		if (IsArray(type)) {
-			const auto typeName = (type.element == BASE_TYPE_STRUCT) ? (fullyQualifiedClassName(type.struct_def))
-																	 : (FLATBUFFERS_CPP_TYPES[type.element]);
-
-			field += fmt::format("{} {}[{}];\n", typeName, fieldDef->name, type.fixed_length);
-		}
-		else {
-			const auto typeName = (type.base_type == BASE_TYPE_STRUCT) ? (fullyQualifiedClassName(type.struct_def))
-																	   : (FLATBUFFERS_CPP_TYPES[type.base_type]);
-
-			field += fmt::format("{} {};\n", typeName, fieldDef->name);
-		}
+		field += fmt::format("{} {};\n", structFieldTypeToString(type), fieldDef->name);
 
 		// Apply padding requirement.
 		if (fieldDef->padding != 0) {
@@ -985,25 +945,148 @@ private:
 			size_t counter = 0;
 
 			if (padding & 0x01) {
-				field += fmt::format("int8_t padding_{}_{};\n", fieldDef->name, counter++);
+				field += fmt::format("int8_t _padding_{}_{};\n", fieldDef->name, counter++);
 				padding -= 1;
 			}
 			if (padding & 0x02) {
-				field += fmt::format("int16_t padding_{}_{};\n", fieldDef->name, counter++);
+				field += fmt::format("int16_t _padding_{}_{};\n", fieldDef->name, counter++);
 				padding -= 2;
 			}
 			if (padding & 0x04) {
-				field += fmt::format("int32_t padding_{}_{};\n", fieldDef->name, counter++);
+				field += fmt::format("int32_t _padding_{}_{};\n", fieldDef->name, counter++);
 				padding -= 4;
 			}
 			while (padding != 0) {
-				field += fmt::format("int64_t padding_{}_{};\n", fieldDef->name, counter++);
+				field += fmt::format("int64_t _padding_{}_{};\n", fieldDef->name, counter++);
 				padding -= 8;
 			}
 		}
 
 		return field;
 	}
+
+	static bool typeIsString(const Type &type) {
+		return (type.base_type == BASE_TYPE_STRING) || (type.element == BASE_TYPE_STRING);
+	}
+
+	static bool typeIsBool(const Type &type) {
+		return IsBool(type.base_type) || IsBool(type.element);
+	}
+
+	static bool typeIsInteger(const Type &type) {
+		return IsInteger(type.base_type) || IsInteger(type.element);
+	}
+
+	static bool typeIsLongInteger(const Type &type) {
+		return IsLong(type.base_type) || IsLong(type.element);
+	}
+
+	static bool typeIsUnsignedInteger(const Type &type) {
+		return IsUnsigned(type.base_type) || IsUnsigned(type.element);
+	}
+
+	static bool typeIsScalar(const Type &type) {
+		return IsScalar(type.base_type) || IsScalar(type.element);
+	}
+
+	static bool typeIsFloat(const Type &type) {
+		return IsFloat(type.base_type) || IsFloat(type.element);
+	}
+
+	static bool typeIsStruct(const Type &type) {
+		return ((type.base_type == BASE_TYPE_STRUCT) || (type.element == BASE_TYPE_STRUCT))
+			   && (type.struct_def != nullptr) && (type.struct_def->fixed == true);
+	}
+
+	static bool typeIsTable(const Type &type) {
+		return ((type.base_type == BASE_TYPE_STRUCT) || (type.element == BASE_TYPE_STRUCT))
+			   && (type.struct_def != nullptr) && (type.struct_def->fixed == false);
+	}
+
+	static bool typeIsEnum(const Type &type) {
+		return typeIsInteger(type) && (type.enum_def != nullptr) && (type.enum_def->is_union == false);
+	}
+
+	static bool typeIsUnionType(const Type &type) {
+		return ((type.base_type == BASE_TYPE_UTYPE) || (type.element == BASE_TYPE_UTYPE)) && (type.enum_def != nullptr)
+			   && (type.enum_def->is_union == true);
+	}
+
+	static bool typeIsUnion(const Type &type) {
+		return ((type.base_type == BASE_TYPE_UNION) || (type.element == BASE_TYPE_UNION)) && (type.enum_def != nullptr)
+			   && (type.enum_def->is_union == true);
+	}
+
+	/**
+	 * Must be an enum, union or union type.
+	 */
+	static std::string scalarTypeToString(const Type &type) {
+		assert(typeIsScalar(type));
+
+		if (IsScalar(type.base_type)) {
+			return FLATBUFFERS_CPP_TYPES[type.base_type];
+		}
+		else {
+			return FLATBUFFERS_CPP_TYPES[type.element];
+		}
+	}
+
+	std::string structFieldTypeToString(const Type &type, const bool objectAPI = false) {
+		// See flatbuffers type table with APIs.
+		// First we generate the types for data elements, then append
+		// the needed parts for vectors/arrays.
+		std::string typeString;
+
+		if (typeIsStruct(type)) {
+			typeString = fullyQualifiedClassName(type.struct_def, objectAPI);
+		}
+		else if (typeIsEnum(type)) {
+			typeString = fullyQualifiedEnumName(type.enum_def);
+		}
+		else if (typeIsBool(type)) {
+			if (objectAPI && !IsArray(type)) {
+				// vectors/arrays of bool are problematic from a memory-layout standpoint.
+				typeString = "bool";
+			}
+			else {
+				// Flatbuffers API.
+				typeString = FLATBUFFERS_CPP_TYPES[BASE_TYPE_BOOL];
+			}
+		}
+		else if (typeIsScalar(type)) {
+			// Same for fb and object APIs.
+			typeString = scalarTypeToString(type);
+		}
+		else {
+			throw std::out_of_range("structFieldTypeToString(): invalid type passed.");
+		}
+
+		if (IsArray(type)) {
+			if (objectAPI) {
+				if (mOptions.mCppStandard < CppStandard::CPP_20) {
+					typeString = fmt::format("flatbuffers::span<const {}, {}>", typeString, type.fixed_length);
+				}
+				else {
+					typeString = fmt::format("std::span<const {}, {}>", typeString, type.fixed_length);
+				}
+			}
+			else {
+				// Flatbuffers API.
+				typeString = fmt::format("std::array<{}, {}>", typeString, type.fixed_length);
+			}
+		}
+
+		return typeString;
+	}
+
+	/*std::string tableFieldTypeToString(const Type &type, const FieldDef *fieldDef, const bool objectAPI = false) {
+		// See flatbuffers type table with APIs.
+		// First we generate the types for data elements, then append
+		// the needed parts for vector/array sequences.
+		std::string typeString;
+
+		return typeString;
+	}*/
 };
 
 } // namespace cppng
