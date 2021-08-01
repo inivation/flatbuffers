@@ -746,19 +746,19 @@ private:
 		return comment;
 	}
 
-	std::string stringType(const Definition *definition) {
+	std::string stringType(const FieldDef *definition) {
 		return attributeValue(definition, "cpp_str_type", BASE_TYPE_STRING, mOptions.cpp_object_api_string_type);
 	}
 
-	std::string vectorType(const Definition *definition) {
+	std::string vectorType(const FieldDef *definition) {
 		return attributeValue(definition, "cpp_vec_type", BASE_TYPE_STRING, mOptions.cpp_object_api_vector_type);
 	}
 
-	std::string pointerType(const Definition *definition) {
+	std::string pointerType(const FieldDef *definition) {
 		return attributeValue(definition, "cpp_ptr_type", BASE_TYPE_STRING, mOptions.cpp_object_api_pointer_type);
 	}
 
-	std::string pointerTypeGetter(const Definition *definition) {
+	std::string pointerTypeGetter(const FieldDef *definition) {
 		return attributeValue(definition, "cpp_ptr_type_get", BASE_TYPE_STRING, ".get()");
 	}
 
@@ -1079,14 +1079,92 @@ private:
 		return typeString;
 	}
 
-	/*std::string tableFieldTypeToString(const Type &type, const FieldDef *fieldDef, const bool objectAPI = false) {
+	std::string tableFieldTypeToString(const Type &type, const FieldDef *fieldDef, const bool objectAPI = false) {
 		// See flatbuffers type table with APIs.
 		// First we generate the types for data elements, then append
 		// the needed parts for vector/array sequences.
 		std::string typeString;
 
+		if (typeIsStruct(type)) {
+			if (objectAPI) {
+				if (fieldDef->native_inline) {
+					typeString = fmt::format("{}", fullyQualifiedClassName(type.struct_def, true));
+				}
+				else {
+					typeString
+						= fmt::format("{}<{}>", pointerType(fieldDef), fullyQualifiedClassName(type.struct_def, true));
+				}
+			}
+			else {
+				typeString = fmt::format("const {} *", fullyQualifiedClassName(type.struct_def, false));
+			}
+		}
+		else if (typeIsTable(type)) {
+			if (objectAPI) {
+				if (fieldDef->native_inline) {
+					typeString = fmt::format("{}", fullyQualifiedClassName(type.struct_def, true));
+				}
+				else {
+					typeString
+						= fmt::format("{}<{}>", pointerType(fieldDef), fullyQualifiedClassName(type.struct_def, true));
+				}
+			}
+			else {
+				typeString = fmt::format("flatbuffers::Offset<{}>", fullyQualifiedClassName(type.struct_def, false));
+			}
+		}
+		else if (typeIsEnum(type)) {
+			typeString = fullyQualifiedEnumName(type.enum_def);
+		}
+		else if (typeIsUnionType(type)) {
+			typeString = fullyQualifiedEnumName(type.enum_def);
+		}
+		else if (typeIsUnion(type)) {
+			if (objectAPI) {
+				typeString = fullyQualifiedEnumName(type.enum_def) + "Union";
+			}
+			else {
+				typeString = "flatbuffers::Offset<void>";
+			}
+		}
+		else if (typeIsString(type)) {
+			if (objectAPI) {
+				typeString = stringType(fieldDef);
+			}
+			else {
+				typeString = "flatbuffers::Offset<flatbuffers::String>";
+			}
+		}
+		else if (typeIsBool(type)) {
+			if (objectAPI && !IsVector(type)) {
+				// vectors/arrays of bool are problematic from a memory-layout standpoint.
+				typeString = "bool";
+			}
+			else {
+				// Flatbuffers API.
+				typeString = FLATBUFFERS_CPP_TYPES[BASE_TYPE_BOOL];
+			}
+		}
+		else if (typeIsScalar(type)) {
+			// Same for fb and object APIs.
+			typeString = scalarTypeToString(type);
+		}
+		else {
+			throw std::out_of_range("tableFieldTypeToString(): invalid type passed.");
+		}
+
+		if (IsVector(type)) {
+			if (objectAPI) {
+				typeString = fmt::format("{}<{}>", vectorType(fieldDef), typeString);
+			}
+			else {
+				// Flatbuffers API.
+				typeString = fmt::format("flatbuffers::Offset<flatbuffers::Vector<{}>>", typeString);
+			}
+		}
+
 		return typeString;
-	}*/
+	}
 };
 
 } // namespace cppng
