@@ -550,6 +550,15 @@ private:
 	void generateIncludes() {
 		mCode += "// Header includes\n";
 		mCode += "#include \"flatbuffers/flatbuffers.h\"\n";
+		mCode += "#include <array>\n";
+
+		if (mOptions.mCppStandard >= CppStandard::CPP_20) {
+			mCode += "#include <span>\n";
+		}
+
+		if (mOptions.mCppStandard >= CppStandard::CPP_17) {
+			mCode += "#include <string_view>\n";
+		}
 
 		if (mOptions.include_dependence_headers) {
 			mCode += includeDependencies();
@@ -939,25 +948,25 @@ private:
 
 		field += fmt::format("{} {};\n", structFieldTypeToString(type), fieldDef->name);
 
-		// Apply padding requirement.
+		// Apply padding requirement. Zero initialize padding.
 		if (fieldDef->padding != 0) {
 			size_t padding = fieldDef->padding;
 			size_t counter = 0;
 
 			if (padding & 0x01) {
-				field += fmt::format("int8_t _padding_{}_{};\n", fieldDef->name, counter++);
+				field += fmt::format("int8_t _padding_{}_{}{{0}};\n", fieldDef->name, counter++);
 				padding -= 1;
 			}
 			if (padding & 0x02) {
-				field += fmt::format("int16_t _padding_{}_{};\n", fieldDef->name, counter++);
+				field += fmt::format("int16_t _padding_{}_{}{{0}};\n", fieldDef->name, counter++);
 				padding -= 2;
 			}
 			if (padding & 0x04) {
-				field += fmt::format("int32_t _padding_{}_{};\n", fieldDef->name, counter++);
+				field += fmt::format("int32_t _padding_{}_{}{{0}};\n", fieldDef->name, counter++);
 				padding -= 4;
 			}
 			while (padding != 0) {
-				field += fmt::format("int64_t _padding_{}_{};\n", fieldDef->name, counter++);
+				field += fmt::format("int64_t _padding_{}_{}{{0}};\n", fieldDef->name, counter++);
 				padding -= 8;
 			}
 		}
