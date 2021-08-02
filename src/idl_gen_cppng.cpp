@@ -929,8 +929,20 @@ private:
 		}
 		structure += '\n';
 		structure += "public:\n";
+		structure += structConstructors(structDef);
+		for (const auto *field : structDef->fields.vec) {
+			structure += structAccessors(field);
+		}
 		structure += "};\n";
 		structure += fmt::format("FLATBUFFERS_STRUCT_END({}, {});\n", className(structDef), structDef->bytesize);
+		structure += '\n';
+
+		// Check assumptions via static_assert.
+		structure += fmt::format("static_assert(std::is_standard_layout_v<{0}>, \"{0} is not standard layout\");\n",
+			fullyQualifiedClassName(structDef));
+		structure
+			+= fmt::format("static_assert(std::is_trivially_copyable_v<{0}>, \"{0} is not trivially copyable\");\n",
+				fullyQualifiedClassName(structDef));
 		structure += '\n';
 
 		return structure;
@@ -972,6 +984,33 @@ private:
 		}
 
 		return field;
+	}
+
+	std::string structConstructors(const StructDef *structDef) {
+		assert(structDef != nullptr);
+
+		std::string constructors;
+
+		// Default constructor. Initialize everything to zero. Padding is already done.
+		constructors += fmt::format("{}() : \n", className(structDef));
+
+		for (const auto *field : structDef->fields.vec) {
+			constructors += fmt::format("{}(),\n", field->name, );
+		}
+
+		constructors += " {}\n";
+
+		return constructors;
+	}
+
+	std::string structAccessors(const FieldDef *fieldDef) {
+		assert(fieldDef != nullptr);
+
+		std::string getter = comment(fieldDef->doc_comment);
+
+		std::string setter = comment(fieldDef->doc_comment);
+
+		return getter + setter;
 	}
 
 	static bool typeIsString(const Type &type) {
