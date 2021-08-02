@@ -746,6 +746,11 @@ private:
 		return comment;
 	}
 
+	std::string constexprStringType() {
+		// C++17 introduces constexpr std::string_view.
+		return (mOptions.mCppStandard < CppStandard::CPP_17) ? ("const char *") : ("std::string_view");
+	}
+
 	std::string stringType(const FieldDef *definition) {
 		return attributeValue(definition, "cpp_str_type", BASE_TYPE_STRING, mOptions.cpp_object_api_string_type);
 	}
@@ -902,11 +907,6 @@ private:
 		return enumeration;
 	}
 
-	std::string constexprStringType() {
-		// C++17 introduces constexpr std::string_view.
-		return (mOptions.mCppStandard < CppStandard::CPP_17) ? ("const char *") : ("std::string_view");
-	}
-
 	std::string fixedSizeStruct(const StructDef *structDef) {
 		assert(structDef != nullptr);
 
@@ -977,20 +977,8 @@ private:
 		return IsInteger(type.base_type) || IsInteger(type.element);
 	}
 
-	static bool typeIsLongInteger(const Type &type) {
-		return IsLong(type.base_type) || IsLong(type.element);
-	}
-
-	static bool typeIsUnsignedInteger(const Type &type) {
-		return IsUnsigned(type.base_type) || IsUnsigned(type.element);
-	}
-
 	static bool typeIsScalar(const Type &type) {
 		return IsScalar(type.base_type) || IsScalar(type.element);
-	}
-
-	static bool typeIsFloat(const Type &type) {
-		return IsFloat(type.base_type) || IsFloat(type.element);
 	}
 
 	static bool typeIsStruct(const Type &type) {
@@ -1088,7 +1076,7 @@ private:
 		if (typeIsStruct(type)) {
 			if (objectAPI) {
 				if (fieldDef->native_inline) {
-					typeString = fmt::format("{}", fullyQualifiedClassName(type.struct_def, true));
+					typeString = fullyQualifiedClassName(type.struct_def, true);
 				}
 				else {
 					typeString
@@ -1102,7 +1090,7 @@ private:
 		else if (typeIsTable(type)) {
 			if (objectAPI) {
 				if (fieldDef->native_inline) {
-					typeString = fmt::format("{}", fullyQualifiedClassName(type.struct_def, true));
+					typeString = fullyQualifiedClassName(type.struct_def, true);
 				}
 				else {
 					typeString
