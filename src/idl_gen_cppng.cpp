@@ -995,8 +995,12 @@ private:
 		constructors += fmt::format("{}() : \n", className(structDef));
 
 		for (const auto *field : structDef->fields.vec) {
-			constructors += fmt::format("{}(),\n", field->name, );
+			constructors += fmt::format("{}(),\n", field->name);
 		}
+
+		// Remove last comma and new-line.
+		constructors.pop_back();
+		constructors.pop_back();
 
 		constructors += " {}\n";
 
