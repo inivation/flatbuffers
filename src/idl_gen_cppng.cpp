@@ -760,6 +760,10 @@ private:
 		return (mOptions.mCppStandard < CppStandard::CPP_17) ? ("const char *") : ("std::string_view");
 	}
 
+	std::string constexprSpanType() {
+		return (mOptions.mCppStandard < CppStandard::CPP_20) ? ("flatbuffers::span") : ("std::span");
+	}
+
 	std::string stringType(const FieldDef *definition) {
 		return attributeValue(definition, "cpp_str_type", BASE_TYPE_STRING, mOptions.cpp_object_api_string_type);
 	}
@@ -943,6 +947,9 @@ private:
 		structure
 			+= fmt::format("static_assert(std::is_trivially_copyable_v<{0}>, \"{0} is not trivially copyable\");\n",
 				fullyQualifiedClassName(structDef));
+		structure += fmt::format(
+			"static_assert(std::is_trivially_destructible_v<{0}>, \"{0} is not trivially destructible\");\n",
+			fullyQualifiedClassName(structDef));
 		structure += '\n';
 
 		return structure;
@@ -956,9 +963,9 @@ private:
 		// Fields in structs can be: scalars, other structs, enums and fixed-length arrays of each of those.
 		// Padding must be added if needed to get the struct size correct.
 		// No defaults for values are supported, nor any attributes really.
-		const auto type = fieldDef->value.type;
-
-		field += fmt::format("{} {};\n", structFieldTypeToString(type), fieldDef->name);
+		// Use C++11 {} uniform initialization which will value-initialize all types
+		// that a struct supports to zero/empty (scalars, arrays, enums, other structs).
+		field += fmt::format("{} {}_{{}};\n", structFieldTypeToString(fieldDef->value.type), fieldDef->name);
 
 		// Apply padding requirement. Zero initialize padding.
 		if (fieldDef->padding != 0) {
@@ -966,19 +973,19 @@ private:
 			size_t counter = 0;
 
 			if (padding & 0x01) {
-				field += fmt::format("int8_t _padding_{}_{}{{0}};\n", fieldDef->name, counter++);
+				field += fmt::format("int8_t padding_{}_{}{{}};\n", fieldDef->name, counter++);
 				padding -= 1;
 			}
 			if (padding & 0x02) {
-				field += fmt::format("int16_t _padding_{}_{}{{0}};\n", fieldDef->name, counter++);
+				field += fmt::format("int16_t padding_{}_{}{{}};\n", fieldDef->name, counter++);
 				padding -= 2;
 			}
 			if (padding & 0x04) {
-				field += fmt::format("int32_t _padding_{}_{}{{0}};\n", fieldDef->name, counter++);
+				field += fmt::format("int32_t padding_{}_{}{{}};\n", fieldDef->name, counter++);
 				padding -= 4;
 			}
 			while (padding != 0) {
-				field += fmt::format("int64_t _padding_{}_{}{{0}};\n", fieldDef->name, counter++);
+				field += fmt::format("int64_t padding_{}_{}{{}};\n", fieldDef->name, counter++);
 				padding -= 8;
 			}
 		}
@@ -991,18 +998,60 @@ private:
 
 		std::string constructors;
 
-		// Default constructor. Initialize everything to zero. Padding is already done.
-		constructors += fmt::format("{}() : \n", className(structDef));
+		// Default constructor. Do nothing as everything is already value-initialized.
+		constructors += fmt::format("{}() = default;\n\n", className(structDef));
+
+		// Constructor with all members. First declare all parameters.
+		// Use objectAPI interface here as that's the 'user-visibile-C++-interface' code.
+		constructors += fmt::format("{}(", className(structDef));
 
 		for (const auto *field : structDef->fields.vec) {
-			constructors += fmt::format("{}(),\n", field->name);
+			constructors += fmt::format("const {} {},", structFieldTypeToString(field->value.type, true), field->name);
 		}
 
-		// Remove last comma and new-line.
-		constructors.pop_back();
+		// Remove last comma.
 		constructors.pop_back();
 
-		constructors += " {}\n";
+		// And then use the constructor initializer list to initialize all scalars,
+		// enums and copy structs. Arrays are done separately in the constructor.
+		constructors += fmt::format(") : \n", className(structDef));
+
+		std::string constructorBody;
+
+		for (const auto *field : structDef->fields.vec) {
+			const auto type = field->value.type;
+
+			if (IsArray(type)) {
+				// Handle arrays: use std:::uninitialized_copy_n() for byte-sized elements for
+				// maximum performance, for scalars loop over the span and assign to array,
+				// doing endian conversion, by using std::transform(). For other structs, we can
+				// again just use std:::uninitialized_copy_n(), as they are trivially copyable.
+				if (IsOneByte(type.element) || typeIsStruct(type)) {
+					constructorBody += fmt::format(
+						"std::uninitialized_copy_n({0}.cbegin(), {0}_.size(), {0}_.begin());\n", field->name);
+				}
+				else {
+					constructorBody += fmt::format(
+						"std::transform({0}.cbegin(), {0}.cend(), {0}_.begin(), flatbuffers::EndianScalar<{1}>);\n",
+						field->name, structFieldTypeToString(type, false, true));
+				}
+			}
+			else if (typeIsScalar(type)) {
+				// For scalars we mandate a cast. It's only really needed for bool->uint8_t, but
+				// doesn't harm any other type and avoids special-casing bool.
+				constructors += fmt::format(
+					"{0}_(flatbuffers::EndianScalar<{1}>({0})),", field->name, structFieldTypeToString(type));
+			}
+			else {
+				constructors += fmt::format("{0}_({0}),", field->name);
+			}
+		}
+
+		// Remove last comma.
+		constructors.pop_back();
+
+		// Constructor body.
+		constructors += fmt::format(" {{ {} }}\n\n", constructorBody);
 
 		return constructors;
 	}
@@ -1071,7 +1120,7 @@ private:
 		}
 	}
 
-	std::string structFieldTypeToString(const Type &type, const bool objectAPI = false) {
+	std::string structFieldTypeToString(const Type &type, const bool objectAPI = false, const bool arrayInnerElementTypeOnly = false) {
 		// See flatbuffers type table with APIs.
 		// First we generate the types for data elements, then append
 		// the needed parts for vectors/arrays.
@@ -1079,6 +1128,12 @@ private:
 
 		if (typeIsStruct(type)) {
 			typeString = fullyQualifiedClassName(type.struct_def, objectAPI);
+
+			// Take structs by reference to avoid extra copy, objectAPI is used
+			// for parameter passing, so this makes sense.
+			if (objectAPI && !IsArray(type)) {
+				typeString += " &";
+			}
 		}
 		else if (typeIsEnum(type)) {
 			typeString = fullyQualifiedEnumName(type.enum_def);
@@ -1101,14 +1156,9 @@ private:
 			throw std::out_of_range("structFieldTypeToString(): invalid type passed.");
 		}
 
-		if (IsArray(type)) {
+		if (IsArray(type) && (!arrayInnerElementTypeOnly)) {
 			if (objectAPI) {
-				if (mOptions.mCppStandard < CppStandard::CPP_20) {
-					typeString = fmt::format("flatbuffers::span<const {}, {}>", typeString, type.fixed_length);
-				}
-				else {
-					typeString = fmt::format("std::span<const {}, {}>", typeString, type.fixed_length);
-				}
+				typeString = fmt::format("{}<const {}, {}>", constexprSpanType(), typeString, type.fixed_length);
 			}
 			else {
 				// Flatbuffers API.
@@ -1119,7 +1169,7 @@ private:
 		return typeString;
 	}
 
-	std::string tableFieldTypeToString(const Type &type, const FieldDef *fieldDef, const bool objectAPI = false) {
+	std::string tableFieldTypeToString(const Type &type, const FieldDef *fieldDef, const bool objectAPI = false, const bool vectorInnerElementTypeOnly = false) {
 		// See flatbuffers type table with APIs.
 		// First we generate the types for data elements, then append
 		// the needed parts for vector/array sequences.
@@ -1193,7 +1243,7 @@ private:
 			throw std::out_of_range("tableFieldTypeToString(): invalid type passed.");
 		}
 
-		if (IsVector(type)) {
+		if (IsVector(type) && (!vectorInnerElementTypeOnly)) {
 			if (objectAPI) {
 				typeString = fmt::format("{}<{}>", vectorType(fieldDef), typeString);
 			}
