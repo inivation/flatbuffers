@@ -108,6 +108,104 @@ static constexpr std::array<const char *, 18> TYPE_NAMES = {{
 	"ARRAY",
 }};
 
+static constexpr std::array<const char *, 95> CPP_KEYWORDS = {{
+	"alignas",
+	"alignof",
+	"and",
+	"and_eq",
+	"asm",
+	"atomic_cancel",
+	"atomic_commit",
+	"atomic_noexcept",
+	"auto",
+	"bitand",
+	"bitor",
+	"bool",
+	"break",
+	"case",
+	"catch",
+	"char",
+	"char16_t",
+	"char32_t",
+	"class",
+	"compl",
+	"concept",
+	"const",
+	"constexpr",
+	"const_cast",
+	"continue",
+	"co_await",
+	"co_return",
+	"co_yield",
+	"decltype",
+	"default",
+	"delete",
+	"do",
+	"double",
+	"dynamic_cast",
+	"else",
+	"enum",
+	"explicit",
+	"export",
+	"extern",
+	"false",
+	"float",
+	"for",
+	"friend",
+	"goto",
+	"if",
+	"import",
+	"inline",
+	"int",
+	"long",
+	"module",
+	"mutable",
+	"namespace",
+	"new",
+	"noexcept",
+	"not",
+	"not_eq",
+	"nullptr",
+	"operator",
+	"or",
+	"or_eq",
+	"private",
+	"protected",
+	"public",
+	"register",
+	"reinterpret_cast",
+	"requires",
+	"return",
+	"short",
+	"signed",
+	"sizeof",
+	"static",
+	"static_assert",
+	"static_cast",
+	"struct",
+	"switch",
+	"synchronized",
+	"template",
+	"this",
+	"thread_local",
+	"throw",
+	"true",
+	"try",
+	"typedef",
+	"typeid",
+	"typename",
+	"union",
+	"unsigned",
+	"using",
+	"virtual",
+	"void",
+	"volatile",
+	"wchar_t",
+	"while",
+	"xor",
+	"xor_eq",
+}};
+
 static constexpr std::array<const char *, 18> FLATBUFFERS_CPP_TYPES = {{
 #define FLATBUFFERS_TD(ENUM, IDLTYPE, CTYPE, ...) #CTYPE,
 	FLATBUFFERS_GEN_TYPES(FLATBUFFERS_TD)
@@ -1003,30 +1101,24 @@ private:
 
 		// Constructor with all members. First declare all parameters.
 		// Use objectAPI interface here as that's the 'user-visibile-C++-interface' code.
-		constructors += fmt::format("{}(", className(structDef));
-
-		for (const auto *field : structDef->fields.vec) {
-			constructors += fmt::format("const {} {},", structFieldTypeToString(field->value.type, true), field->name);
-		}
-
-		// Remove last comma.
-		constructors.pop_back();
-
 		// And then use the constructor initializer list to initialize all scalars,
-		// enums and copy structs. Arrays are done separately in the constructor.
-		constructors += fmt::format(") : \n", className(structDef));
-
+		// enums and copy structs. Arrays are done separately in the constructor body.
+		std::string constructorParameters;
+		std::string constructorInitializerList;
 		std::string constructorBody;
 
 		for (const auto *field : structDef->fields.vec) {
 			const auto type = field->value.type;
+
+			constructorParameters += fmt::format("const {} {},", structFieldTypeToString(type, true), field->name);
 
 			if (IsArray(type)) {
 				// Handle arrays: use std:::uninitialized_copy_n() for byte-sized elements for
 				// maximum performance, for scalars loop over the span and assign to array,
 				// doing endian conversion, by using std::transform(). For other structs, we can
 				// again just use std:::uninitialized_copy_n(), as they are trivially copyable.
-				if (IsOneByte(type.element) || typeIsStruct(type)) {
+				if (IsOneByte(type.element) || typeIsStruct(type)
+					|| (typeIsEnum(type) && IsOneByte(type.enum_def->underlying_type.base_type))) {
 					constructorBody += fmt::format(
 						"std::uninitialized_copy_n({0}.cbegin(), {0}_.size(), {0}_.begin());\n", field->name);
 				}
@@ -1037,21 +1129,24 @@ private:
 				}
 			}
 			else if (typeIsScalar(type)) {
-				// For scalars we mandate a cast. It's only really needed for bool->uint8_t, but
-				// doesn't harm any other type and avoids special-casing bool.
-				constructors += fmt::format(
+				// For scalars we always do EndianConversion with underlying fixed-size type.
+				// For bool we use uint8_t; for one-byte scalars this isn't strictly needed but does no
+				// harm (gets compiled away), so we keep handling for all scalars the same to simplify.
+				constructorInitializerList += fmt::format(
 					"{0}_(flatbuffers::EndianScalar<{1}>({0})),", field->name, structFieldTypeToString(type));
 			}
 			else {
-				constructors += fmt::format("{0}_({0}),", field->name);
+				constructorInitializerList += fmt::format("{0}_({0}),", field->name);
 			}
 		}
 
 		// Remove last comma.
-		constructors.pop_back();
+		constructorParameters.pop_back();
+		constructorInitializerList.pop_back();
 
-		// Constructor body.
-		constructors += fmt::format(" {{ {} }}\n\n", constructorBody);
+		// Full constructor.
+		constructors += fmt::format("{}({}) : {}\n{{ {} }}\n\n", className(structDef), constructorParameters,
+			constructorInitializerList, constructorBody);
 
 		return constructors;
 	}
@@ -1059,11 +1154,121 @@ private:
 	std::string structAccessors(const FieldDef *fieldDef) {
 		assert(fieldDef != nullptr);
 
+		const auto type = fieldDef->value.type;
+
 		std::string getter = comment(fieldDef->doc_comment);
 
+		std::string getterReturnType = structFieldTypeToString(type, true, false, true);
+
+		if (IsArray(type)) {
+			getterReturnType = fmt::format("const {} *", getterReturnType);
+		}
+		else if (IsStruct(type)) {
+			// Structs are best returned as const&, so we special-case that here.
+			getterReturnType = fmt::format("const {}", getterReturnType);
+		}
+
+		std::string getterBody;
+
+		if (IsArray(type)) {
+			getterBody = fmt::format("return reinterpret_cast<{}>({}_.data());", getterReturnType, fieldDef->name);
+		}
+		else if (IsScalar(type.base_type)) {
+			getterBody
+				= fmt::format("flatbuffers::EndianScalar<{}>({}_)", structFieldTypeToString(type), fieldDef->name);
+
+			if (IsBool(type.base_type)) {
+				// Integer to bool by checking against zero.
+				getterBody = fmt::format("({} != 0)", getterBody);
+			}
+
+			getterBody = fmt::format("return {};", getterBody);
+		}
+		else {
+			getterBody = fmt::format("return {}_;", fieldDef->name);
+		}
+
+		// Add getVAR() getter.
+		getter += fmt::format("{} get{}() const {{ {} }}\n", getterReturnType,
+			fieldName(fieldDef->name, IDLOptions::CaseStyle_Upper), getterBody);
+
+		// Add compatibility with main flatbuffers getter.
+		getter += comment(fieldDef->doc_comment);
+		getter += fmt::format("{} {}() const {{ return get{}(); }}\n", getterReturnType, fieldDef->name,
+			fieldName(fieldDef->name, IDLOptions::CaseStyle_Upper));
+
+		// Return early if mutability is disabled.
+		if (!mOptions.mutable_buffer) {
+			return getter;
+		}
+
+		// Setter.
 		std::string setter = comment(fieldDef->doc_comment);
 
+		std::string setterParameterType = structFieldTypeToString(type, true);
+
+		std::string setterBody;
+
+		if (IsArray(type)) {
+			// Handle arrays: use std:::uninitialized_copy_n() for byte-sized elements for
+			// maximum performance, for scalars loop over the span and assign to array,
+			// doing endian conversion, by using std::transform(). For other structs, we can
+			// again just use std:::uninitialized_copy_n(), as they are trivially copyable.
+			if (IsOneByte(type.element) || typeIsStruct(type)
+				|| (typeIsEnum(type) && IsOneByte(type.enum_def->underlying_type.base_type))) {
+				setterBody += fmt::format(
+					"std::uninitialized_copy_n({0}.cbegin(), {0}_.size(), {0}_.begin());\n", fieldDef->name);
+			}
+			else {
+				setterBody += fmt::format(
+					"std::transform({0}.cbegin(), {0}.cend(), {0}_.begin(), flatbuffers::EndianScalar<{1}>);\n",
+					fieldDef->name, structFieldTypeToString(type, false, true));
+			}
+		}
+		else if (typeIsScalar(type)) {
+			// For scalars we always do EndianConversion with underlying fixed-size type.
+			// For bool we use uint8_t; for one-byte scalars this isn't strictly needed but does no
+			// harm (gets compiled away), so we keep handling for all scalars the same to simplify.
+			setterBody += fmt::format(
+				"{0}_ = flatbuffers::EndianScalar<{1}>({0});", fieldDef->name, structFieldTypeToString(type));
+		}
+		else {
+			setterBody += fmt::format("{0}_ = {0};", fieldDef->name);
+		}
+
+		// Add setVAR(value) setter.
+		setter += fmt::format("void set{}(const {} {}) {{ {} }}\n",
+			fieldName(fieldDef->name, IDLOptions::CaseStyle_Upper), setterParameterType, fieldDef->name, setterBody);
+
+		// Add compatibility setters/mutators.
+		if (IsArray(type)) {
+			setter += fmt::format("{0} *mutable_{1}() {{ return reinterpret_cast<{0} *>({1}_.data()); }}\n",
+				structFieldTypeToString(type, true, false, true), fieldDef->name);
+		}
+		else {
+			setter += fmt::format("void mutate_{0}(const {1} {0}) {{ set{2}({0}); }}\n", fieldDef->name,
+				setterParameterType, fieldName(fieldDef->name, IDLOptions::CaseStyle_Upper));
+		}
+
 		return getter + setter;
+	}
+
+	static std::string fieldName(const std::string &name, const IDLOptions::CaseStyle style) {
+		std::string fieldName = name;
+
+		if (style == IDLOptions::CaseStyle_Upper) {
+			fieldName = MakeCamel(fieldName, true); /* upper */
+		}
+		else if (style == IDLOptions::CaseStyle_Lower) {
+			fieldName = MakeCamel(fieldName, false); /* lower */
+		}
+
+		return fieldName;
+	}
+
+	static std::string escapeKeyword(const std::string &name) {
+		const auto iter = std::find(CPP_KEYWORDS.cbegin(), CPP_KEYWORDS.cend(), name);
+		return (iter == CPP_KEYWORDS.cend()) ? (name) : (name + "_");
 	}
 
 	static bool typeIsString(const Type &type) {
@@ -1120,7 +1325,8 @@ private:
 		}
 	}
 
-	std::string structFieldTypeToString(const Type &type, const bool objectAPI = false, const bool arrayInnerElementTypeOnly = false) {
+	std::string structFieldTypeToString(const Type &type, const bool objectAPI = false,
+		const bool arrayInnerElementTypeOnly = false, const bool arrayAccessor = false) {
 		// See flatbuffers type table with APIs.
 		// First we generate the types for data elements, then append
 		// the needed parts for vectors/arrays.
@@ -1129,8 +1335,7 @@ private:
 		if (typeIsStruct(type)) {
 			typeString = fullyQualifiedClassName(type.struct_def, objectAPI);
 
-			// Take structs by reference to avoid extra copy, objectAPI is used
-			// for parameter passing, so this makes sense.
+			// Pass structs by reference in object API for performance. Usually const-ref.
 			if (objectAPI && !IsArray(type)) {
 				typeString += " &";
 			}
@@ -1158,7 +1363,10 @@ private:
 
 		if (IsArray(type) && (!arrayInnerElementTypeOnly)) {
 			if (objectAPI) {
-				typeString = fmt::format("{}<const {}, {}>", constexprSpanType(), typeString, type.fixed_length);
+				const auto arrayType        = (arrayAccessor) ? ("flatbuffers::Array") : (constexprSpanType());
+				const auto elementConstness = (arrayAccessor) ? ("") : ("const");
+
+				typeString = fmt::format("{}<{} {}, {}>", arrayType, elementConstness, typeString, type.fixed_length);
 			}
 			else {
 				// Flatbuffers API.
@@ -1169,7 +1377,8 @@ private:
 		return typeString;
 	}
 
-	std::string tableFieldTypeToString(const Type &type, const FieldDef *fieldDef, const bool objectAPI = false, const bool vectorInnerElementTypeOnly = false) {
+	std::string tableFieldTypeToString(const Type &type, const FieldDef *fieldDef, const bool objectAPI = false,
+		const bool vectorInnerElementTypeOnly = false) {
 		// See flatbuffers type table with APIs.
 		// First we generate the types for data elements, then append
 		// the needed parts for vector/array sequences.
