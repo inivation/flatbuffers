@@ -682,12 +682,12 @@ private:
 				mCode += fmt::format("struct {};\n", className(st));
 			}
 			for (const auto *tb : ns.mTables) {
-				mCode += fmt::format("struct {};\n", className(tb));
-				mCode += fmt::format("struct {}Builder;\n", className(tb));
-
 				if (mOptions.generate_object_based_api) {
 					mCode += fmt::format("struct {};\n", className(tb, true));
 				}
+
+				mCode += fmt::format("struct {};\n", className(tb));
+				mCode += fmt::format("struct {}Builder;\n", className(tb));
 			}
 
 			mCode += namespaceOpenClose(ns, false);
@@ -741,7 +741,33 @@ private:
 	}
 
 	void generateTables() {
-		// TODO: implement.
+		if (mOptions.generate_object_based_api) {
+			mCode += "// Flatbuffer tables and Object API native tables\n";
+		}
+		else {
+			mCode += "// Flatbuffer tables (Object API disabled)\n";
+		}
+
+		// Go through namespaces in order (see top comments about traversal order).
+		for (const auto &ns : mNamespaces) {
+			if (ns.mTables.empty()) {
+				// No tables present, skip this namespace.
+				continue;
+			}
+
+			mCode += namespaceOpenClose(ns, true);
+
+			for (const auto *tb : ns.mTables) {
+				if (mOptions.generate_object_based_api) {
+					mCode += nativeTable(tb);
+				}
+
+				mCode += table(tb);
+			}
+
+			mCode += namespaceOpenClose(ns, false);
+			mCode += '\n';
+		}
 	}
 
 	std::string className(const StructDef *structDef, const bool objectAPI = false) {
@@ -1463,6 +1489,22 @@ private:
 		}
 
 		return typeString;
+	}
+
+	std::string nativeTable(const StructDef *tableDef) {
+		assert(tableDef != nullptr);
+
+		std::string nativeTable = comment(tableDef->doc_comment);
+
+		return nativeTable;
+	}
+
+	std::string table(const StructDef *tableDef) {
+		assert(tableDef != nullptr);
+
+		std::string table = comment(tableDef->doc_comment);
+
+		return table;
 	}
 };
 
