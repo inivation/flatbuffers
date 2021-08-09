@@ -1494,7 +1494,18 @@ private:
 	std::string nativeTable(const StructDef *tableDef) {
 		assert(tableDef != nullptr);
 
+		const auto flatName   = className(tableDef, false);
+		const auto nativeName = className(tableDef, true);
+
 		std::string nativeTable = comment(tableDef->doc_comment);
+
+		nativeTable += fmt::format("struct {} : public flatbuffers::NativeTable {{\n", nativeName);
+		nativeTable += fmt::format("using TableType = {};\n\n", flatName);
+		for (const auto *field : tableDef->fields.vec) {
+			nativeTable
+				+= fmt::format("{} {}{{}};\n", tableFieldTypeToString(field->value.type, field, true), field->name);
+		}
+		nativeTable += "};\n\n";
 
 		return nativeTable;
 	}
