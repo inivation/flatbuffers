@@ -937,22 +937,67 @@ private:
 		return getNamespaceName(enumDef->defined_namespace) + NAMESPACE_SEP + enumName(enumDef);
 	}
 
-	static std::string numericLiteral(const std::string &literal, const BaseType type) {
+	static std::string numericConstant(
+		const std::string &constant, const BaseType type, const EnumDef *enumDef = nullptr) {
+		if (enumDef != nullptr) {
+			// This is an enum numeric constant, so we try to convert it to its symbolic name.
+			const auto enumVal = enumDef->FindByValue(constant);
+			if (enumVal != nullptr) {
+				return fmt::format("{}::{}", fullyQualifiedEnumName(enumDef), enumVal->name);
+			}
+		}
+
 		switch (type) {
+			case BASE_TYPE_BOOL: {
+				const auto intToBool = std::stoll(constant);
+
+				if (intToBool == 0) {
+					return "false";
+				}
+				else {
+					return "true";
+				}
+			}
+
 			case BASE_TYPE_UINT:
-				return literal + "U";
+				return constant + "U";
 
 			case BASE_TYPE_LONG:
-				return literal + "LL";
+				return constant + "LL";
 
 			case BASE_TYPE_ULONG:
-				return literal + "LLU";
+				return constant + "LLU";
 
-			case BASE_TYPE_FLOAT:
-				return literal + "F";
+			case BASE_TYPE_FLOAT: {
+				const auto flt = std::stof(constant);
+
+				if (std::isnan(flt)) {
+					return "std::numeric_limits<float>::quiet_NaN()";
+				}
+				else if (std::isinf(flt)) {
+					return "std::numeric_limits<float>::infinity()";
+				}
+				else {
+					return constant + "F";
+				}
+			}
+
+			case BASE_TYPE_DOUBLE: {
+				const auto dbl = std::stod(constant);
+
+				if (std::isnan(dbl)) {
+					return "std::numeric_limits<double>::quiet_NaN()";
+				}
+				else if (std::isinf(dbl)) {
+					return "std::numeric_limits<double>::infinity()";
+				}
+				else {
+					return constant;
+				}
+			}
 
 			default:
-				return literal;
+				return constant;
 		}
 	}
 
@@ -971,7 +1016,7 @@ private:
 
 		for (const auto *enumVal : enumDef->Vals()) {
 			enumeration += fmt::format("{}{} = {},\n", comment(enumVal->doc_comment), enumVal->name,
-				numericLiteral(enumDef->ToString(*enumVal), enumDef->underlying_type.base_type));
+				numericConstant(enumDef->ToString(*enumVal), enumDef->underlying_type.base_type));
 		}
 
 		if (bitFlags) {
@@ -1502,8 +1547,18 @@ private:
 		nativeTable += fmt::format("struct {} : public flatbuffers::NativeTable {{\n", nativeName);
 		nativeTable += fmt::format("using TableType = {};\n\n", flatName);
 		for (const auto *field : tableDef->fields.vec) {
-			nativeTable
-				+= fmt::format("{} {}{{}};\n", tableFieldTypeToString(field->value.type, field, true), field->name);
+			if (field->deprecated) {
+				// Skip deprecated fields in native table.
+				continue;
+			}
+
+			const std::string initValue
+				= (IsScalar(field->value.type.base_type)) ? (
+					  numericConstant(field->value.constant, field->value.type.base_type, field->value.type.enum_def))
+														  : ("");
+
+			nativeTable += fmt::format(
+				"{} {}{{ {} }};\n", tableFieldTypeToString(field->value.type, field, true), field->name, initValue);
 		}
 		nativeTable += "};\n\n";
 
