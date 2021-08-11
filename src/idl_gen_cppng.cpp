@@ -1134,6 +1134,8 @@ private:
 		// No defaults for values are supported, nor any attributes really.
 		// Use C++11 {} uniform initialization which will value-initialize all types
 		// that a struct supports to zero/empty (scalars, arrays, enums, other structs).
+		// Struct fields have an underscore (_) appended to their name to not conflict with the
+		// name of their getter, which is the same.
 		field += fmt::format("{} {}_{{}};\n", structFieldTypeToString(fieldDef->value.type), fieldDef->name);
 
 		// Apply padding requirement. Zero initialize padding.
@@ -1225,28 +1227,35 @@ private:
 	std::string structAccessors(const FieldDef *fieldDef) {
 		assert(fieldDef != nullptr);
 
-		const auto type = fieldDef->value.type;
+		const auto type              = fieldDef->value.type;
+		const auto fieldNameOriginal = fieldName(fieldDef->name, IDLOptions::CaseStyle_Unchanged);
+		const auto fieldNameUpper    = fieldName(fieldDef->name, IDLOptions::CaseStyle_Upper);
 
 		std::string getter = comment(fieldDef->doc_comment);
 
+		// Getter return type.
 		std::string getterReturnType = structFieldTypeToString(type, true, false, true);
 
 		if (IsArray(type)) {
+			// Arrays are special: pointers to const flatbuffers::Array.
 			getterReturnType = fmt::format("const {} *", getterReturnType);
 		}
 		else if (IsStruct(type)) {
-			// Structs are best returned as const&, so we special-case that here.
+			// Structs are best returned as const-ref, so we special-case that here.
+			// Object-API return type for struct is already ref, so add const only.
 			getterReturnType = fmt::format("const {}", getterReturnType);
 		}
 
+		// Getter function body.
 		std::string getterBody;
 
 		if (IsArray(type)) {
-			getterBody = fmt::format("return reinterpret_cast<{}>({}_.data());", getterReturnType, fieldDef->name);
+			// Arrays access underlying std::array memory directly via .data().
+			getterBody = fmt::format("return reinterpret_cast<{}>({}_.data());", getterReturnType, fieldNameOriginal);
 		}
 		else if (IsScalar(type.base_type)) {
 			getterBody
-				= fmt::format("flatbuffers::EndianScalar<{}>({}_)", structFieldTypeToString(type), fieldDef->name);
+				= fmt::format("flatbuffers::EndianScalar<{}>({}_)", structFieldTypeToString(type), fieldNameOriginal);
 
 			if (IsBool(type.base_type)) {
 				// Integer to bool by checking against zero.
@@ -1256,17 +1265,16 @@ private:
 			getterBody = fmt::format("return {};", getterBody);
 		}
 		else {
-			getterBody = fmt::format("return {}_;", fieldDef->name);
+			getterBody = fmt::format("return {}_;", fieldNameOriginal);
 		}
 
 		// Add getVAR() getter.
-		getter += fmt::format("{} get{}() const {{ {} }}\n", getterReturnType,
-			fieldName(fieldDef->name, IDLOptions::CaseStyle_Upper), getterBody);
+		getter += fmt::format("{} get{}() const {{ {} }}\n", getterReturnType, fieldNameUpper, getterBody);
 
 		// Add compatibility with main flatbuffers getter.
 		getter += comment(fieldDef->doc_comment);
-		getter += fmt::format("{} {}() const {{ return get{}(); }}\n", getterReturnType, fieldDef->name,
-			fieldName(fieldDef->name, IDLOptions::CaseStyle_Upper));
+		getter += fmt::format(
+			"{} {}() const {{ return get{}(); }}\n", getterReturnType, fieldNameOriginal, fieldNameUpper);
 
 		// Return early if mutability is disabled.
 		if (!mOptions.mutable_buffer) {
@@ -1278,6 +1286,7 @@ private:
 
 		std::string setterParameterType = structFieldTypeToString(type, true);
 
+		// Setter function body.
 		std::string setterBody;
 
 		if (IsArray(type)) {
@@ -1288,12 +1297,12 @@ private:
 			if (IsOneByte(type.element) || typeIsStruct(type)
 				|| (typeIsEnum(type) && IsOneByte(type.enum_def->underlying_type.base_type))) {
 				setterBody += fmt::format(
-					"std::uninitialized_copy_n({0}.cbegin(), {0}_.size(), {0}_.begin());\n", fieldDef->name);
+					"std::uninitialized_copy_n({0}.cbegin(), {0}_.size(), {0}_.begin());\n", fieldNameOriginal);
 			}
 			else {
 				setterBody += fmt::format(
 					"std::transform({0}.cbegin(), {0}.cend(), {0}_.begin(), flatbuffers::EndianScalar<{1}>);\n",
-					fieldDef->name, structFieldTypeToString(type, false, true));
+					fieldNameOriginal, structFieldTypeToString(type, false, true));
 			}
 		}
 		else if (typeIsScalar(type)) {
@@ -1301,24 +1310,25 @@ private:
 			// For bool we use uint8_t; for one-byte scalars this isn't strictly needed but does no
 			// harm (gets compiled away), so we keep handling for all scalars the same to simplify.
 			setterBody += fmt::format(
-				"{0}_ = flatbuffers::EndianScalar<{1}>({0});", fieldDef->name, structFieldTypeToString(type));
+				"{0}_ = flatbuffers::EndianScalar<{1}>({0});", fieldNameOriginal, structFieldTypeToString(type));
 		}
 		else {
-			setterBody += fmt::format("{0}_ = {0};", fieldDef->name);
+			setterBody += fmt::format("{0}_ = {0};", fieldNameOriginal);
 		}
 
 		// Add setVAR(value) setter.
-		setter += fmt::format("void set{}(const {} {}) {{ {} }}\n",
-			fieldName(fieldDef->name, IDLOptions::CaseStyle_Upper), setterParameterType, fieldDef->name, setterBody);
+		setter += fmt::format(
+			"void set{}(const {} {}) {{ {} }}\n", fieldNameUpper, setterParameterType, fieldNameOriginal, setterBody);
 
 		// Add compatibility setters/mutators.
 		if (IsArray(type)) {
+			// Mutable arrays are a special case.
 			setter += fmt::format("{0} *mutable_{1}() {{ return reinterpret_cast<{0} *>({1}_.data()); }}\n",
-				structFieldTypeToString(type, true, false, true), fieldDef->name);
+				structFieldTypeToString(type, true, false, true), fieldNameOriginal);
 		}
 		else {
-			setter += fmt::format("void mutate_{0}(const {1} {0}) {{ set{2}({0}); }}\n", fieldDef->name,
-				setterParameterType, fieldName(fieldDef->name, IDLOptions::CaseStyle_Upper));
+			setter += fmt::format("void mutate_{0}(const {1} {0}) {{ set{2}({0}); }}\n", fieldNameOriginal,
+				setterParameterType, fieldNameUpper);
 		}
 
 		return getter + setter;
@@ -1557,20 +1567,78 @@ private:
 					  numericConstant(field->value.constant, field->value.type.base_type, field->value.type.enum_def))
 														  : ("");
 
-			nativeTable += fmt::format(
-				"{} {}{{ {} }};\n", tableFieldTypeToString(field->value.type, field, true), field->name, initValue);
+			nativeTable += fmt::format("{}{} {}{{ {} }};\n", comment(field->doc_comment),
+				tableFieldTypeToString(field->value.type, field, true),
+				fieldName(field->name, mOptions.cpp_object_api_field_case_style), initValue);
 		}
 		nativeTable += "};\n\n";
 
 		return nativeTable;
 	}
 
+	std::string fieldOffsetName(const std::string &name) {
+		auto upperName = fieldName(name, IDLOptions::CaseStyle_Unchanged);
+		std::transform(upperName.begin(), upperName.end(), upperName.begin(), CharToUpper);
+		return "VT_" + upperName;
+	}
+
 	std::string table(const StructDef *tableDef) {
 		assert(tableDef != nullptr);
 
+		const auto flatName    = className(tableDef, false);
+		const auto builderName = flatName + "Builder";
+		const auto nativeName  = className(tableDef, true);
+
 		std::string table = comment(tableDef->doc_comment);
 
+		table += fmt::format("struct {} final : private flatbuffers::Table {{\n", flatName);
+		if (mOptions.generate_object_based_api) {
+			table += fmt::format("using NativeTableType = {};\n", nativeName);
+		}
+		table += fmt::format("using Builder = {};\n", builderName);
+		table += '\n';
+
+		// Offsets for fields.
+		table += "enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {\n";
+		for (const auto *field : tableDef->fields.vec) {
+			if (field->deprecated) {
+				// Skip deprecated fields.
+				continue;
+			}
+
+			table += fmt::format("{} = {},\n", fieldOffsetName(field->name), field->value.offset);
+		}
+		table += "};\n\n";
+
+		// Flatbuffer field getters.
+		for (const auto *field : tableDef->fields.vec) {
+			if (field->deprecated) {
+				// Skip deprecated fields.
+				continue;
+			}
+
+			table += flatbufferAccessors(field);
+		}
+
+		table += "};\n\n";
+
 		return table;
+	}
+
+	std::string flatbufferAccessors(const FieldDef *fieldDef) {
+		assert(fieldDef != nullptr);
+
+		std::string getter = comment(fieldDef->doc_comment);
+
+		// Return early if mutability is disabled.
+		if (!mOptions.mutable_buffer) {
+			return getter;
+		}
+
+		// Setter.
+		std::string setter = comment(fieldDef->doc_comment);
+
+		return getter + setter;
 	}
 };
 
