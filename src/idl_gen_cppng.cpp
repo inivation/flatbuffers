@@ -945,6 +945,16 @@ private:
 			if (enumVal != nullptr) {
 				return fmt::format("{}::{}", fullyQualifiedEnumName(enumDef), enumVal->name);
 			}
+
+			// Maybe it's a bitflag enum and we also have to check NONE/ANY.
+			if (attributeExists(enumDef, "bit_flags")) {
+				if (constant == enumDef->AllFlags()) {
+					return fmt::format("{}::ANY", fullyQualifiedEnumName(enumDef));
+				}
+				else if (constant == "0") {
+					return fmt::format("{}::NONE", fullyQualifiedEnumName(enumDef));
+				}
+			}
 		}
 
 		switch (type) {
@@ -1465,10 +1475,15 @@ private:
 		// the needed parts for vector/array sequences.
 		std::string typeString;
 
-		if (typeIsStruct(type)) {
+		if (typeIsStruct(type) || typeIsTable(type)) {
 			if (objectAPI) {
 				if (fieldDef->native_inline) {
 					typeString = fullyQualifiedClassName(type.struct_def, true);
+
+					// Pass structs by reference in object API for performance. Usually const-ref.
+					if (!IsVector(type)) {
+						typeString += " &";
+					}
 				}
 				else {
 					typeString
@@ -1476,21 +1491,7 @@ private:
 				}
 			}
 			else {
-				typeString = fmt::format("const {} *", fullyQualifiedClassName(type.struct_def, false));
-			}
-		}
-		else if (typeIsTable(type)) {
-			if (objectAPI) {
-				if (fieldDef->native_inline) {
-					typeString = fullyQualifiedClassName(type.struct_def, true);
-				}
-				else {
-					typeString
-						= fmt::format("{}<{}>", pointerType(fieldDef), fullyQualifiedClassName(type.struct_def, true));
-				}
-			}
-			else {
-				typeString = fmt::format("flatbuffers::Offset<{}>", fullyQualifiedClassName(type.struct_def, false));
+				typeString = fullyQualifiedClassName(type.struct_def, false);
 			}
 		}
 		else if (typeIsEnum(type)) {
@@ -1504,7 +1505,7 @@ private:
 				typeString = fullyQualifiedEnumName(type.enum_def) + "Union";
 			}
 			else {
-				typeString = "flatbuffers::Offset<void>";
+				typeString = "void";
 			}
 		}
 		else if (typeIsString(type)) {
@@ -1512,7 +1513,7 @@ private:
 				typeString = stringType(fieldDef);
 			}
 			else {
-				typeString = "flatbuffers::Offset<flatbuffers::String>";
+				typeString = "flatbuffers::String";
 			}
 		}
 		else if (typeIsBool(type)) {
@@ -1538,8 +1539,16 @@ private:
 				typeString = fmt::format("{}<{}>", vectorType(fieldDef), typeString);
 			}
 			else {
-				// Flatbuffers API.
-				typeString = fmt::format("flatbuffers::Offset<flatbuffers::Vector<{}>>", typeString);
+				// Flatbuffers API. This is a bit more complex to account for fb::Offset mainly.
+				// And structs are again special because of internal performance.
+				if (typeIsStruct(type)) {
+					typeString = fmt::format("const {} *", typeString);
+				}
+				else if (typeIsTable(type) || typeIsUnion(type) || typeIsString(type)) {
+					typeString = fmt::format("flatbuffers::Offset<{}>", typeString);
+				}
+
+				typeString = fmt::format("flatbuffers::Vector<{}>", typeString);
 			}
 		}
 
@@ -1628,7 +1637,28 @@ private:
 	std::string flatbufferAccessors(const FieldDef *fieldDef) {
 		assert(fieldDef != nullptr);
 
+		const auto type = fieldDef->value.type;
+
 		std::string getter = comment(fieldDef->doc_comment);
+
+		// Getter return type.
+		std::string getterReturnType = tableFieldTypeToString(type, fieldDef, false);
+
+		if (!IsScalar(type.base_type)) {
+			getterReturnType = fmt::format("const {} *", getterReturnType);
+		}
+
+		// Getter function body.
+		std::string getterBody;
+
+		if (typeIsScalar(type)) {
+			getterBody = fmt::format("return GetField<{}>({}, {});", getterReturnType, fieldOffsetName(fieldDef->name),
+				numericConstant(fieldDef->value.constant, type.base_type, type.enum_def));
+		}
+
+		// Flatbuffers getter.
+		getter += fmt::format("{} {}() const {{ {} }}\n", getterReturnType,
+			fieldName(fieldDef->name, IDLOptions::CaseStyle_Unchanged), getterBody);
 
 		// Return early if mutability is disabled.
 		if (!mOptions.mutable_buffer) {
