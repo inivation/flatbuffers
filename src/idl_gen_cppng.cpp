@@ -689,9 +689,9 @@ private:
 				mCode += fmt::format("struct {};\n", className(tb));
 				mCode += fmt::format("struct {}Builder;\n", className(tb));
 			}
+			mCode += '\n';
 
 			mCode += namespaceOpenClose(ns, false);
-			mCode += '\n';
 		}
 	}
 
@@ -710,12 +710,13 @@ private:
 			for (const auto *en : ns.mEnums) {
 				mCode += scopedEnumeration(en);
 			}
+
 			for (const auto *un : ns.mUnions) {
 				mCode += scopedEnumeration(un);
+				mCode += unionVerification(un);
 			}
 
 			mCode += namespaceOpenClose(ns, false);
-			mCode += '\n';
 		}
 	}
 
@@ -736,7 +737,6 @@ private:
 			}
 
 			mCode += namespaceOpenClose(ns, false);
-			mCode += '\n';
 		}
 	}
 
@@ -766,7 +766,6 @@ private:
 			}
 
 			mCode += namespaceOpenClose(ns, false);
-			mCode += '\n';
 		}
 	}
 
@@ -865,11 +864,12 @@ private:
 			for (const auto &component : ns.mNameComponents) {
 				nsString += fmt::format((open) ? ("namespace {} {{\n") : ("}} // namespace {}\n"), component);
 			}
+			nsString += '\n';
 			return nsString;
 		}
 		else {
 			// C++17 and newer can do nested namespaces directly.
-			return fmt::format((open) ? ("namespace {} {{\n") : ("}} // namespace {}\n"), ns.mFullName);
+			return fmt::format((open) ? ("namespace {} {{\n\n") : ("}} // namespace {}\n\n"), ns.mFullName);
 		}
 	}
 
@@ -1058,10 +1058,9 @@ private:
 								   "    {enumValues}"
 								   "  }}}};\n"
 								   "  return values;\n"
-								   "}}\n",
+								   "}}\n\n",
 			"enumType"_a = fullyQualifiedEnumName(enumDef), "enumName"_a = enumName(enumDef),
 			"enumNumElements"_a = enumDef->size(), "enumValues"_a = enumValues);
-		enumeration += '\n';
 
 		std::string enumNames;
 		for (const auto *enumVal : enumDef->Vals()) {
@@ -1073,16 +1072,15 @@ private:
 								   "    {enumNames}"
 								   "  }}}};\n"
 								   "  return names;\n"
-								   "}}\n",
+								   "}}\n\n",
 			"stringType"_a = constexprStringType(), "enumName"_a = enumName(enumDef),
 			"enumNumElements"_a = enumDef->size(), "enumNames"_a = enumNames);
-		enumeration += '\n';
 
 		std::string nameLookup;
 		size_t counter = 0;
 		for (const auto *enumVal : enumDef->Vals()) {
 			nameLookup += fmt::format("case {}::{}:\n"
-									  "  return EnumNames{}()[{}];\n",
+									  "  return EnumNames{}()[{}];\n\n",
 				fullyQualifiedEnumName(enumDef), enumVal->name, enumName(enumDef), counter++);
 		}
 
@@ -1092,11 +1090,52 @@ private:
 								   "    default:\n"
 								   "      return \"\";\n"
 								   "  }}\n"
-								   "}}\n",
+								   "}}\n\n",
 			"stringType"_a = constexprStringType(), "enumName"_a = enumName(enumDef),
 			"enumType"_a = fullyQualifiedEnumName(enumDef), "enumLookupCases"_a = nameLookup);
 
 		return enumeration;
+	}
+
+	std::string unionVerification(const EnumDef *enumDef) {
+		assert(enumDef != nullptr);
+
+		std::string verifiers;
+
+		verifiers += fmt::format("inline bool Verify{}(flatbuffers::Verifier &verifier, const void *obj, {} type) {{\n",
+			enumName(enumDef), fullyQualifiedEnumName(enumDef));
+		verifiers += "switch (type) {\n";
+		for (const auto *enumVal : enumDef->Vals()) {
+			verifiers += fmt::format("case {}::{}:\n", fullyQualifiedEnumName(enumDef), enumVal->name);
+
+			if (typeIsStruct(enumVal->union_type)) {
+				verifiers += fmt::format("return verifier.Verify<{}>(static_cast<const uint8_t *>(obj), 0);\n\n",
+					fullyQualifiedClassName(enumVal->union_type.struct_def));
+			}
+			else if (typeIsTable(enumVal->union_type)) {
+				verifiers += fmt::format("return verifier.VerifyTable(reinterpret_cast<const {} *>(obj));\n\n",
+					fullyQualifiedClassName(enumVal->union_type.struct_def));
+			}
+			else {
+				verifiers += "return true;\n\n";
+			}
+		}
+		verifiers += "default:\nreturn true;\n\n";
+		verifiers += "}\n}\n\n";
+
+		verifiers += fmt::format("inline bool Verify{}Vector(flatbuffers::Verifier &verifier, "
+								 "const flatbuffers::Vector<flatbuffers::Offset<void>> *values, "
+								 "const flatbuffers::Vector<{}> *types) {{\n",
+			enumName(enumDef), scalarTypeToString(enumDef->underlying_type));
+		verifiers += "if ((!values) || (!types)) { return ((!values) && (!types)); }\n\n";
+		verifiers += "if (values->size() != types->size()) { return false; }\n\n";
+		verifiers += "for (flatbuffers::uoffset_t i = 0; i < values->size(); i++) {\n";
+		verifiers
+			+= fmt::format("if (!Verify{}(verifier, values->Get(i), types->GetEnum<{}>(i))) {{ return false; }}\n",
+				enumName(enumDef), fullyQualifiedEnumName(enumDef));
+		verifiers += "}\n\nreturn true;\n}\n\n";
+
+		return verifiers;
 	}
 
 	std::string fixedSizeStruct(const StructDef *structDef) {
@@ -1112,6 +1151,12 @@ private:
 		}
 		structure += '\n';
 		structure += "public:\n";
+
+		if (mOptions.generate_object_based_api) {
+			structure += fmt::format("using NativeTableType = {};\n", className(structDef));
+		}
+		structure += fmt::format("using TableType = {};\n\n", className(structDef));
+
 		structure += structConstructors(structDef);
 		for (const auto *field : structDef->fields.vec) {
 			structure += structAccessors(field);
@@ -1651,9 +1696,12 @@ private:
 		// Getter function body.
 		std::string getterBody;
 
-		if (typeIsScalar(type)) {
+		if (!IsVector(type) && typeIsScalar(type)) {
 			getterBody = fmt::format("return GetField<{}>({}, {});", getterReturnType, fieldOffsetName(fieldDef->name),
 				numericConstant(fieldDef->value.constant, type.base_type, type.enum_def));
+		}
+		else {
+			getterBody = fmt::format("return GetPointer<{}>({});", getterReturnType, fieldOffsetName(fieldDef->name));
 		}
 
 		// Flatbuffers getter.
