@@ -1126,7 +1126,7 @@ private:
 		verifiers += fmt::format("inline bool Verify{}Vector(flatbuffers::Verifier &verifier, "
 								 "const flatbuffers::Vector<flatbuffers::Offset<void>> *values, "
 								 "const flatbuffers::Vector<{}> *types) {{\n",
-			enumName(enumDef), scalarTypeToString(enumDef->underlying_type));
+			enumName(enumDef), fullyQualifiedEnumName(enumDef));
 		verifiers += "if ((!values) || (!types)) { return ((!values) && (!types)); }\n\n";
 		verifiers += "if (values->size() != types->size()) { return false; }\n\n";
 		verifiers += "for (flatbuffers::uoffset_t i = 0; i < values->size(); i++) {\n";
@@ -1664,7 +1664,7 @@ private:
 		}
 		table += "};\n\n";
 
-		// Flatbuffer field getters.
+		// Flatbuffer field getters and setters.
 		for (const auto *field : tableDef->fields.vec) {
 			if (field->deprecated) {
 				// Skip deprecated fields.
@@ -1673,6 +1673,8 @@ private:
 
 			table += flatbufferAccessors(field);
 		}
+
+		table += flatbufferVerification(tableDef);
 
 		table += "};\n\n";
 
@@ -1717,6 +1719,62 @@ private:
 		std::string setter = comment(fieldDef->doc_comment);
 
 		return getter + setter;
+	}
+
+	std::string flatbufferVerification(const StructDef *tableDef) {
+		assert(tableDef != nullptr);
+
+		std::string verifier;
+		verifier += "bool Verify(flatbuffers::Verifier &verifier) const {\n";
+		verifier += "  return (VerifyTableStart(verifier)";
+
+		for (const auto *field : tableDef->fields.vec) {
+			if (field->deprecated) {
+				// Skip deprecated fields.
+				continue;
+			}
+
+			const auto type              = field->value.type;
+			const auto fieldNameOriginal = fieldName(field->name, IDLOptions::CaseStyle_Unchanged);
+			const auto required          = (field->IsRequired()) ? ("Required") : ("");
+
+			if (IsVector(type)) {
+				verifier += fmt::format(" && VerifyOffset{}(verifier, {}) && verifier.VerifyVector({}())", required,
+					fieldOffsetName(field->name), fieldNameOriginal);
+
+				if (typeIsUnion(type)) {
+					verifier += fmt::format(
+						" && Verify{0}Vector(verifier, {1}(), {1}_type())", enumName(type.enum_def), fieldNameOriginal);
+				}
+				else if (typeIsString(type)) {
+					verifier += fmt::format(" && verifier.VerifyVectorOfStrings({}())", fieldNameOriginal);
+				}
+				else if (typeIsTable(type)) {
+					verifier += fmt::format(" && verifier.VerifyVectorOfTables({}())", fieldNameOriginal);
+				}
+			}
+			else if (typeIsUnion(type)) {
+				verifier += fmt::format(" && VerifyOffset{0}(verifier, {1}) && Verify{2}(verifier, {3}(), {3}_type())",
+					required, fieldOffsetName(field->name), enumName(type.enum_def), fieldNameOriginal);
+			}
+			else if (typeIsString(type)) {
+				verifier += fmt::format(" && VerifyOffset{}(verifier, {}) && verifier.VerifyString({}())", required,
+					fieldOffsetName(field->name), fieldNameOriginal);
+			}
+			else if (typeIsTable(type)) {
+				verifier += fmt::format(" && VerifyOffset{}(verifier, {}) && verifier.VerifyTable({}())", required,
+					fieldOffsetName(field->name), fieldNameOriginal);
+			}
+			else {
+				verifier += fmt::format(" && VerifyField{}<{}>(verifier, {})", required,
+					tableFieldTypeToString(type, field), fieldOffsetName(field->name));
+			}
+		}
+
+		verifier += " && verifier.EndTable());\n";
+		verifier += "}\n\n";
+
+		return verifier;
 	}
 };
 
