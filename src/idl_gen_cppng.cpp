@@ -1324,12 +1324,12 @@ private:
 		}
 
 		// Add getVAR() getter.
-		getter += fmt::format("{} get{}() const {{ {} }}\n", getterReturnType, fieldNameUpper, getterBody);
+		getter += fmt::format("{} get{}() const {{ {} }}\n\n", getterReturnType, fieldNameUpper, getterBody);
 
-		// Add compatibility with main flatbuffers getter.
+		// Flatbuffer original C++ generator compatibility.
 		getter += comment(fieldDef->doc_comment);
 		getter += fmt::format(
-			"{} {}() const {{ return get{}(); }}\n", getterReturnType, fieldNameOriginal, fieldNameUpper);
+			"{} {}() const {{ return get{}(); }}\n\n", getterReturnType, fieldNameOriginal, fieldNameUpper);
 
 		// Return early if mutability is disabled.
 		if (!mOptions.mutable_buffer) {
@@ -1373,16 +1373,16 @@ private:
 
 		// Add setVAR(value) setter.
 		setter += fmt::format(
-			"void set{}(const {} {}) {{ {} }}\n", fieldNameUpper, setterParameterType, fieldNameOriginal, setterBody);
+			"void set{}(const {} {}) {{ {} }}\n\n", fieldNameUpper, setterParameterType, fieldNameOriginal, setterBody);
 
-		// Add compatibility setters/mutators.
+		// Flatbuffer original C++ generator compatibility.
 		if (IsArray(type)) {
 			// Mutable arrays are a special case.
-			setter += fmt::format("{0} *mutable_{1}() {{ return reinterpret_cast<{0} *>({1}_.data()); }}\n",
+			setter += fmt::format("{0} *mutable_{1}() {{ return reinterpret_cast<{0} *>({1}_.data()); }}\n\n",
 				structFieldTypeToString(type, true, false, true), fieldNameOriginal);
 		}
 		else {
-			setter += fmt::format("void mutate_{0}(const {1} {0}) {{ set{2}({0}); }}\n", fieldNameOriginal,
+			setter += fmt::format("void mutate_{0}(const {1} {0}) {{ set{2}({0}); }}\n\n", fieldNameOriginal,
 				setterParameterType, fieldNameUpper);
 		}
 
@@ -1609,7 +1609,9 @@ private:
 		std::string nativeTable = comment(tableDef->doc_comment);
 
 		nativeTable += fmt::format("struct {} : public flatbuffers::NativeTable {{\n", nativeName);
-		nativeTable += fmt::format("using TableType = {};\n\n", flatName);
+		nativeTable += fmt::format("using TableType = {};\n", flatName);
+		nativeTable += fmt::format("using Builder = {}Builder;\n\n", flatName);
+
 		for (const auto *field : tableDef->fields.vec) {
 			if (field->deprecated) {
 				// Skip deprecated fields in native table.
@@ -1649,8 +1651,7 @@ private:
 		if (mOptions.generate_object_based_api) {
 			table += fmt::format("using NativeTableType = {};\n", nativeName);
 		}
-		table += fmt::format("using Builder = {};\n", builderName);
-		table += '\n';
+		table += fmt::format("using Builder = {};\n\n", builderName);
 
 		// Offsets for fields.
 		table += "enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {\n";
@@ -1678,7 +1679,52 @@ private:
 
 		table += "};\n\n";
 
+		table += unionTemplateSpecialization(tableDef);
+
+		// Builder.
+		table += fmt::format("struct {} final {{\n", builderName);
+		if (mOptions.generate_object_based_api) {
+			table += fmt::format("using NativeTableType = {};\n", nativeName);
+		}
+		table += fmt::format("using TableType = {};\n", flatName);
+
+		// Flatbuffer original C++ generator compatibility.
+		table += fmt::format("using Table = {};\n\n", flatName);
+
+		table += "};\n\n";
+
 		return table;
+	}
+
+	std::string unionTemplateSpecialization(const StructDef *tableDef) {
+		assert(tableDef != nullptr);
+
+		std::string unionTemplateAccumulator;
+
+		for (const auto *field : tableDef->fields.vec) {
+			if (field->deprecated) {
+				// Skip deprecated fields.
+				continue;
+			}
+
+			const auto type = field->value.type;
+
+			if (!IsVector(type) && typeIsUnion(type)) {
+				for (const auto *enumVal : type.enum_def->Vals()) {
+					if (enumVal->union_type.struct_def == nullptr) {
+						// Skip NONE.
+						continue;
+					}
+
+					unionTemplateAccumulator += fmt::format(
+						"template<> inline const {0} *{3}::{1}_as<{0}>() const {{ return {1}_as_{2}(); }}\n\n",
+						fullyQualifiedClassName(enumVal->union_type.struct_def),
+						fieldName(field->name, IDLOptions::CaseStyle_Unchanged), enumVal->name, className(tableDef));
+				}
+			}
+		}
+
+		return unionTemplateAccumulator;
 	}
 
 	std::string flatbufferAccessors(const FieldDef *fieldDef) {
@@ -1707,8 +1753,27 @@ private:
 		}
 
 		// Flatbuffers getter.
-		getter += fmt::format("{} {}() const {{ {} }}\n", getterReturnType,
+		getter += fmt::format("{} {}() const {{ {} }}\n\n", getterReturnType,
 			fieldName(fieldDef->name, IDLOptions::CaseStyle_Unchanged), getterBody);
+
+		// If union, provide extra getters to get as its sub-types.
+		if (!IsVector(type) && typeIsUnion(type)) {
+			for (const auto *enumVal : type.enum_def->Vals()) {
+				if (enumVal->union_type.struct_def == nullptr) {
+					// Use NONE, which is always first, to add the function template that gets
+					// later specialized in unionTemplateSpecialization().
+					getter += fmt::format("template<typename T> const T *{}_as() const;\n\n",
+						fieldName(fieldDef->name, IDLOptions::CaseStyle_Unchanged));
+					continue;
+				}
+
+				getter += fmt::format("const {0} * {1}_as_{3}() const {{ return ({1}_type() == {2}::{3}) ? "
+									  "(static_cast<const {0} *>({1}())): (nullptr); }}\n\n",
+					fullyQualifiedClassName(enumVal->union_type.struct_def),
+					fieldName(fieldDef->name, IDLOptions::CaseStyle_Unchanged), fullyQualifiedEnumName(type.enum_def),
+					enumVal->name);
+			}
+		}
 
 		// Return early if mutability is disabled.
 		if (!mOptions.mutable_buffer) {
