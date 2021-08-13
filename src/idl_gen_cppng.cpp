@@ -1691,6 +1691,25 @@ private:
 		// Flatbuffer original C++ generator compatibility.
 		table += fmt::format("using Table = {};\n\n", flatName);
 
+		table += "flatbuffers::FlatBufferBuilder &fbb_;\n";
+		table += "flatbuffers::uoffset_t start_;\n\n";
+
+		table += fmt::format(
+			"explicit {}(flatbuffers::FlatBufferBuilder &fbb) : fbb_(fbb), start_(fbb_.StartTable()) {{ }}\n\n",
+			builderName);
+
+		table += fmt::format("flatbuffers::Offset<{}> Finish() {{\n", fullyQualifiedClassName(tableDef));
+		table += "const auto end = fbb_.EndTable(start_);\n";
+		table += fmt::format("auto offset = flatbuffers::Offset<{}>(end);\n", fullyQualifiedClassName(tableDef));
+		for (const auto *field : tableDef->fields.vec) {
+			if (field->IsRequired()) {
+				// Required fields need additional check.
+				table += fmt::format("fbb_.Required(offset, {}::{});\n", fullyQualifiedClassName(tableDef),
+					fieldOffsetName(field->name));
+			}
+		}
+		table += "return offset;\n}\n\n";
+
 		table += "};\n\n";
 
 		return table;
