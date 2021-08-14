@@ -1283,7 +1283,7 @@ private:
 		assert(fieldDef != nullptr);
 
 		const auto type              = fieldDef->value.type;
-		const auto fieldNameOriginal = fieldName(fieldDef->name, IDLOptions::CaseStyle_Unchanged);
+		const auto fieldNameOriginal = fieldName(fieldDef->name);
 		const auto fieldNameUpper    = fieldName(fieldDef->name, IDLOptions::CaseStyle_Upper);
 
 		std::string getter = comment(fieldDef->doc_comment);
@@ -1389,7 +1389,8 @@ private:
 		return getter + setter;
 	}
 
-	static std::string fieldName(const std::string &name, const IDLOptions::CaseStyle style) {
+	static std::string fieldName(
+		const std::string &name, const IDLOptions::CaseStyle style = IDLOptions::CaseStyle::CaseStyle_Unchanged) {
 		std::string fieldName = name;
 
 		if (style == IDLOptions::CaseStyle_Upper) {
@@ -1618,13 +1619,14 @@ private:
 				continue;
 			}
 
-			const std::string initValue
-				= (IsScalar(field->value.type.base_type)) ? (
-					  numericConstant(field->value.constant, field->value.type.base_type, field->value.type.enum_def))
-														  : ("");
+			const auto type = field->value.type;
+
+			const std::string initValue = (IsScalar(type.base_type))
+											  ? (numericConstant(field->value.constant, type.base_type, type.enum_def))
+											  : ("");
 
 			nativeTable += fmt::format("{}{} {}{{ {} }};\n", comment(field->doc_comment),
-				tableFieldTypeToString(field->value.type, field, true),
+				tableFieldTypeToString(type, field, true),
 				fieldName(field->name, mOptions.cpp_object_api_field_case_style), initValue);
 		}
 		nativeTable += "};\n\n";
@@ -1633,7 +1635,7 @@ private:
 	}
 
 	std::string fieldOffsetName(const std::string &name) {
-		auto upperName = fieldName(name, IDLOptions::CaseStyle_Unchanged);
+		auto upperName = fieldName(name);
 		std::transform(upperName.begin(), upperName.end(), upperName.begin(), CharToUpper);
 		return "VT_" + upperName;
 	}
@@ -1694,14 +1696,21 @@ private:
 		table += "flatbuffers::FlatBufferBuilder &fbb_;\n";
 		table += "flatbuffers::uoffset_t start_;\n\n";
 
+		// Builder constructor.
 		table += fmt::format(
 			"explicit {}(flatbuffers::FlatBufferBuilder &fbb) : fbb_(fbb), start_(fbb_.StartTable()) {{ }}\n\n",
 			builderName);
 
+		// Builder table Finish() function.
 		table += fmt::format("flatbuffers::Offset<{}> Finish() {{\n", fullyQualifiedClassName(tableDef));
 		table += "const auto end = fbb_.EndTable(start_);\n";
 		table += fmt::format("auto offset = flatbuffers::Offset<{}>(end);\n", fullyQualifiedClassName(tableDef));
 		for (const auto *field : tableDef->fields.vec) {
+			if (field->deprecated) {
+				// Skip deprecated fields.
+				continue;
+			}
+
 			if (field->IsRequired()) {
 				// Required fields need additional check.
 				table += fmt::format("fbb_.Required(offset, {}::{});\n", fullyQualifiedClassName(tableDef),
@@ -1710,9 +1719,54 @@ private:
 		}
 		table += "return offset;\n}\n\n";
 
+		// Builder add_*() functions.
+		for (const auto *field : tableDef->fields.vec) {
+			if (field->deprecated) {
+				// Skip deprecated fields.
+				continue;
+			}
+
+			table += flatbufferBuilderAdd(field, fullyQualifiedClassName(tableDef));
+		}
+
 		table += "};\n\n";
 
 		return table;
+	}
+
+	std::string flatbufferBuilderAdd(const FieldDef *fieldDef, const std::string &tableName) {
+		assert(fieldDef != nullptr);
+
+		std::string adder = comment(fieldDef->doc_comment);
+
+		const auto type = fieldDef->value.type;
+
+		if (IsBool(type.base_type)) {
+			adder += fmt::format("void add_{0}(const bool {0}) {{ fbb_.AddElement<{1}>({3}::{4}, "
+								 "static_cast<{1}>({0}), static_cast<{1}>({2})); }}\n\n",
+				fieldName(fieldDef->name), tableFieldTypeToString(type, fieldDef),
+				numericConstant(fieldDef->value.constant, type.base_type, type.enum_def), tableName,
+				fieldOffsetName(fieldDef->name));
+		}
+		else if (IsScalar(type.base_type)) {
+			adder += fmt::format("void add_{0}(const {1} {0}) {{ fbb_.AddElement<{1}>({3}::{4}, {0}, {2}); }}\n\n",
+				fieldName(fieldDef->name), tableFieldTypeToString(type, fieldDef),
+				numericConstant(fieldDef->value.constant, type.base_type, type.enum_def), tableName,
+				fieldOffsetName(fieldDef->name));
+		}
+		else if (IsStruct(type)) {
+			adder += fmt::format("void add_{0}(const {1} * {0}) {{ fbb_.AddStruct({2}::{3}, {0}); }}\n\n",
+				fieldName(fieldDef->name), tableFieldTypeToString(type, fieldDef), tableName,
+				fieldOffsetName(fieldDef->name));
+		}
+		else {
+			adder += fmt::format(
+				"void add_{0}(const flatbuffers::Offset<{1}> {0}) {{ fbb_.AddOffset({2}::{3}, {0}); }}\n\n",
+				fieldName(fieldDef->name), tableFieldTypeToString(type, fieldDef), tableName,
+				fieldOffsetName(fieldDef->name));
+		}
+
+		return adder;
 	}
 
 	std::string unionTemplateSpecialization(const StructDef *tableDef) {
@@ -1737,8 +1791,8 @@ private:
 
 					unionTemplateAccumulator += fmt::format(
 						"template<> inline const {0} *{3}::{1}_as<{0}>() const {{ return {1}_as_{2}(); }}\n\n",
-						fullyQualifiedClassName(enumVal->union_type.struct_def),
-						fieldName(field->name, IDLOptions::CaseStyle_Unchanged), enumVal->name, className(tableDef));
+						fullyQualifiedClassName(enumVal->union_type.struct_def), fieldName(field->name), enumVal->name,
+						className(tableDef));
 				}
 			}
 		}
@@ -1754,9 +1808,12 @@ private:
 		std::string getter = comment(fieldDef->doc_comment);
 
 		// Getter return type.
-		std::string getterReturnType = tableFieldTypeToString(type, fieldDef, false);
+		std::string getterReturnType = tableFieldTypeToString(type, fieldDef);
 
-		if (!IsScalar(type.base_type)) {
+		if (IsBool(type.base_type)) {
+			getterReturnType = "bool";
+		}
+		else if (!IsScalar(type.base_type)) {
 			getterReturnType = fmt::format("const {} *", getterReturnType);
 		}
 
@@ -1764,16 +1821,23 @@ private:
 		std::string getterBody;
 
 		if (!IsVector(type) && typeIsScalar(type)) {
-			getterBody = fmt::format("return GetField<{}>({}, {});", getterReturnType, fieldOffsetName(fieldDef->name),
-				numericConstant(fieldDef->value.constant, type.base_type, type.enum_def));
+			if (IsBool(type.base_type)) {
+				getterBody = fmt::format("return (GetField<{0}>({1}, static_cast<{0}>({2})) != 0);",
+					tableFieldTypeToString(type, fieldDef), fieldOffsetName(fieldDef->name),
+					numericConstant(fieldDef->value.constant, type.base_type, type.enum_def));
+			}
+			else {
+				getterBody
+					= fmt::format("return GetField<{}>({}, {});", getterReturnType, fieldOffsetName(fieldDef->name),
+						numericConstant(fieldDef->value.constant, type.base_type, type.enum_def));
+			}
 		}
 		else {
 			getterBody = fmt::format("return GetPointer<{}>({});", getterReturnType, fieldOffsetName(fieldDef->name));
 		}
 
 		// Flatbuffers getter.
-		getter += fmt::format("{} {}() const {{ {} }}\n\n", getterReturnType,
-			fieldName(fieldDef->name, IDLOptions::CaseStyle_Unchanged), getterBody);
+		getter += fmt::format("{} {}() const {{ {} }}\n\n", getterReturnType, fieldName(fieldDef->name), getterBody);
 
 		// If union, provide extra getters to get as its sub-types.
 		if (!IsVector(type) && typeIsUnion(type)) {
@@ -1781,16 +1845,15 @@ private:
 				if (enumVal->union_type.struct_def == nullptr) {
 					// Use NONE, which is always first, to add the function template that gets
 					// later specialized in unionTemplateSpecialization().
-					getter += fmt::format("template<typename T> const T *{}_as() const;\n\n",
-						fieldName(fieldDef->name, IDLOptions::CaseStyle_Unchanged));
+					getter
+						+= fmt::format("template<typename T> const T *{}_as() const;\n\n", fieldName(fieldDef->name));
 					continue;
 				}
 
 				getter += fmt::format("const {0} * {1}_as_{3}() const {{ return ({1}_type() == {2}::{3}) ? "
 									  "(static_cast<const {0} *>({1}())): (nullptr); }}\n\n",
-					fullyQualifiedClassName(enumVal->union_type.struct_def),
-					fieldName(fieldDef->name, IDLOptions::CaseStyle_Unchanged), fullyQualifiedEnumName(type.enum_def),
-					enumVal->name);
+					fullyQualifiedClassName(enumVal->union_type.struct_def), fieldName(fieldDef->name),
+					fullyQualifiedEnumName(type.enum_def), enumVal->name);
 			}
 		}
 
@@ -1819,7 +1882,7 @@ private:
 			}
 
 			const auto type              = field->value.type;
-			const auto fieldNameOriginal = fieldName(field->name, IDLOptions::CaseStyle_Unchanged);
+			const auto fieldNameOriginal = fieldName(field->name);
 			const auto required          = (field->IsRequired()) ? ("Required") : ("");
 
 			if (IsVector(type)) {
