@@ -1680,6 +1680,8 @@ private:
 
 		table += flatbufferVerification(tableDef);
 
+		table += flatbufferStaticDef(tableDef);
+
 		table += "};\n\n";
 
 		table += unionTemplateSpecialization(tableDef);
@@ -1694,17 +1696,17 @@ private:
 		// Flatbuffer original C++ generator compatibility.
 		table += fmt::format("using Table = {};\n\n", flatName);
 
-		table += "flatbuffers::FlatBufferBuilder &fbb_;\n";
-		table += "flatbuffers::uoffset_t start_;\n\n";
+		table += "flatbuffers::FlatBufferBuilder &mFlatbufferBuilder;\n";
+		table += "flatbuffers::uoffset_t mStart;\n\n";
 
 		// Builder constructor.
-		table += fmt::format(
-			"explicit {}(flatbuffers::FlatBufferBuilder &fbb) : fbb_(fbb), start_(fbb_.StartTable()) {{ }}\n\n",
+		table += fmt::format("explicit {}(flatbuffers::FlatBufferBuilder &fbBuilder) : mFlatbufferBuilder(fbBuilder), "
+							 "mStart(mFlatbufferBuilder.StartTable()) {{ }}\n\n",
 			builderName);
 
 		// Builder table Finish() function.
 		table += fmt::format("flatbuffers::Offset<{}> Finish() {{\n", fullyQualifiedClassName(tableDef));
-		table += "const auto end = fbb_.EndTable(start_);\n";
+		table += "const auto end = mFlatbufferBuilder.EndTable(mStart);\n";
 		table += fmt::format("auto offset = flatbuffers::Offset<{}>(end);\n", fullyQualifiedClassName(tableDef));
 		for (const auto *field : tableDef->fields.vec) {
 			if (field->deprecated) {
@@ -1714,8 +1716,8 @@ private:
 
 			if (field->IsRequired()) {
 				// Required fields need additional check.
-				table += fmt::format("fbb_.Required(offset, {}::{});\n", fullyQualifiedClassName(tableDef),
-					fieldOffsetName(field->name));
+				table += fmt::format("mFlatbufferBuilder.Required(offset, {}::{});\n",
+					fullyQualifiedClassName(tableDef), fieldOffsetName(field->name));
 			}
 		}
 		table += "return offset;\n}\n\n";
@@ -1732,40 +1734,127 @@ private:
 
 		table += "};\n\n";
 
+		table += flatbufferStatic(tableDef);
+
 		return table;
+	}
+
+	std::string flatbufferStaticDef(const StructDef *tableDef) {
+		assert(tableDef != nullptr);
+
+		std::string createParameters;
+
+		for (const auto *field : tableDef->fields.vec) {
+			if (field->deprecated) {
+				// Skip deprecated fields.
+				continue;
+			}
+
+			const auto type = field->value.type;
+			std::string defaultValue;
+
+			if (IsScalar(type.base_type)) {
+				defaultValue = numericConstant(field->value.constant, type.base_type, type.enum_def);
+
+				if (IsBool(type.base_type)) {
+					defaultValue = (defaultValue == "1") ? ("true") : ("false");
+				}
+			}
+			else if (IsStruct(type)) {
+				defaultValue = "nullptr";
+			}
+			else {
+				defaultValue = "0";
+			}
+
+			createParameters += fmt::format(", const {} {} = {}", addType(field), fieldName(field->name), defaultValue);
+		}
+
+		std::string staticDefs;
+
+		staticDefs
+			+= fmt::format("static flatbuffers::Offset<{0}> Create(flatbuffers::FlatBufferBuilder &fbBuilder{1});\n",
+				className(tableDef), createParameters);
+
+		return staticDefs;
+	}
+
+	std::string flatbufferStatic(const StructDef *tableDef) {
+		assert(tableDef != nullptr);
+
+		std::string createParameters;
+		std::string createBody;
+
+		for (const auto *field : tableDef->fields.vec) {
+			if (field->deprecated) {
+				// Skip deprecated fields.
+				continue;
+			}
+
+			createParameters += fmt::format(", const {} {}", addType(field), fieldName(field->name));
+		}
+
+		std::string create;
+
+		create += fmt::format(
+			"inline flatbuffers::Offset<{0}> {0}::Create(flatbuffers::FlatBufferBuilder &fbBuilder{1}) {{\n"
+			"  {0}Builder builder(fbBuilder);\n\n"
+			"  {2}\n"
+			"  return builder.Finish();\n"
+			"}}\n\n",
+			fullyQualifiedClassName(tableDef), createParameters, createBody);
+
+		create += fmt::format(
+			"constexpr auto Create{1} = {0}::Create;\n\n", fullyQualifiedClassName(tableDef), className(tableDef));
+
+		return create;
+	}
+
+	std::string addType(const FieldDef *fieldDef) {
+		assert(fieldDef != nullptr);
+
+		const auto type = fieldDef->value.type;
+
+		if (IsBool(type.base_type)) {
+			return "bool";
+		}
+		else if (IsScalar(type.base_type)) {
+			return tableFieldTypeToString(type, fieldDef);
+		}
+		else if (IsStruct(type)) {
+			return fmt::format("{} *", tableFieldTypeToString(type, fieldDef));
+		}
+		else {
+			return fmt::format("flatbuffers::Offset<{}>", tableFieldTypeToString(type, fieldDef));
+		}
 	}
 
 	std::string flatbufferBuilderAdd(const FieldDef *fieldDef, const std::string &tableName) {
 		assert(fieldDef != nullptr);
 
-		std::string adder = comment(fieldDef->doc_comment);
-
 		const auto type = fieldDef->value.type;
 
-		if (IsBool(type.base_type)) {
-			adder += fmt::format("void add_{0}(const bool {0}) {{ fbb_.AddElement<{1}>({3}::{4}, "
-								 "static_cast<{1}>({0}), {2}); }}\n\n",
-				fieldName(fieldDef->name), tableFieldTypeToString(type, fieldDef),
-				numericConstant(fieldDef->value.constant, type.base_type, type.enum_def), tableName,
-				fieldOffsetName(fieldDef->name));
-		}
-		else if (IsScalar(type.base_type)) {
-			adder += fmt::format("void add_{0}(const {1} {0}) {{ fbb_.AddElement<{1}>({3}::{4}, {0}, {2}); }}\n\n",
-				fieldName(fieldDef->name), tableFieldTypeToString(type, fieldDef),
+		std::string adderBody;
+
+		if (IsScalar(type.base_type)) {
+			adderBody = fmt::format("AddElement<{1}>({3}::{4}, static_cast<{1}>({0}), {2})", fieldName(fieldDef->name),
+				tableFieldTypeToString(type, fieldDef),
 				numericConstant(fieldDef->value.constant, type.base_type, type.enum_def), tableName,
 				fieldOffsetName(fieldDef->name));
 		}
 		else if (IsStruct(type)) {
-			adder += fmt::format("void add_{0}(const {1} * {0}) {{ fbb_.AddStruct({2}::{3}, {0}); }}\n\n",
-				fieldName(fieldDef->name), tableFieldTypeToString(type, fieldDef), tableName,
-				fieldOffsetName(fieldDef->name));
+			adderBody = fmt::format(
+				"AddStruct({1}::{2}, {0})", fieldName(fieldDef->name), tableName, fieldOffsetName(fieldDef->name));
 		}
 		else {
-			adder += fmt::format(
-				"void add_{0}(const flatbuffers::Offset<{1}> {0}) {{ fbb_.AddOffset({2}::{3}, {0}); }}\n\n",
-				fieldName(fieldDef->name), tableFieldTypeToString(type, fieldDef), tableName,
-				fieldOffsetName(fieldDef->name));
+			adderBody = fmt::format(
+				"AddOffset({1}::{2}, {0})", fieldName(fieldDef->name), tableName, fieldOffsetName(fieldDef->name));
 		}
+
+		std::string adder = comment(fieldDef->doc_comment);
+
+		adder += fmt::format("void add_{0}(const {1} {0}) {{ mFlatbufferBuilder.{2}; }}\n\n", fieldName(fieldDef->name),
+			addType(fieldDef), adderBody);
 
 		return adder;
 	}
@@ -1815,22 +1904,22 @@ private:
 		std::string getterBody;
 
 		if (!IsVector(type) && typeIsScalar(type)) {
-			getterBody
-			= fmt::format("GetField<{}>({}, {})", getterReturnType, fieldOffsetName(fieldDef->name),
-						  numericConstant(fieldDef->value.constant, type.base_type, type.enum_def));
+			getterBody = fmt::format("GetField<{}>({}, {})", getterReturnType, fieldOffsetName(fieldDef->name),
+				numericConstant(fieldDef->value.constant, type.base_type, type.enum_def));
 
 			if (IsBool(type.base_type)) {
 				getterReturnType = "bool";
-				getterBody = fmt::format("({} != 0)", getterBody);
+				getterBody       = fmt::format("({} != 0)", getterBody);
 			}
 		}
 		else {
 			getterReturnType = fmt::format("const {} *", getterReturnType);
-			getterBody = fmt::format("GetPointer<{}>({})", getterReturnType, fieldOffsetName(fieldDef->name));
+			getterBody       = fmt::format("GetPointer<{}>({})", getterReturnType, fieldOffsetName(fieldDef->name));
 		}
 
 		// Flatbuffers getter.
-		getter += fmt::format("{} {}() const {{ return {}; }}\n\n", getterReturnType, fieldName(fieldDef->name), getterBody);
+		getter += fmt::format(
+			"{} {}() const {{ return {}; }}\n\n", getterReturnType, fieldName(fieldDef->name), getterBody);
 
 		// If union, provide extra getters to get as its sub-types.
 		if (!IsVector(type) && typeIsUnion(type)) {
