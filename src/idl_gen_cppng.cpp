@@ -649,6 +649,7 @@ private:
 		mCode += "// Header includes\n";
 		mCode += "#include \"flatbuffers/flatbuffers.h\"\n";
 		mCode += "#include <array>\n";
+		mCode += "#include <limits>\n";
 
 		if (mOptions.mCppStandard >= CppStandard::CPP_20) {
 			mCode += "#include <span>\n";
@@ -962,10 +963,10 @@ private:
 				const auto intToBool = std::stoll(constant);
 
 				if (intToBool == 0) {
-					return "false";
+					return "0";
 				}
 				else {
-					return "true";
+					return "1";
 				}
 			}
 
@@ -1743,7 +1744,7 @@ private:
 
 		if (IsBool(type.base_type)) {
 			adder += fmt::format("void add_{0}(const bool {0}) {{ fbb_.AddElement<{1}>({3}::{4}, "
-								 "static_cast<{1}>({0}), static_cast<{1}>({2})); }}\n\n",
+								 "static_cast<{1}>({0}), {2}); }}\n\n",
 				fieldName(fieldDef->name), tableFieldTypeToString(type, fieldDef),
 				numericConstant(fieldDef->value.constant, type.base_type, type.enum_def), tableName,
 				fieldOffsetName(fieldDef->name));
@@ -1810,34 +1811,26 @@ private:
 		// Getter return type.
 		std::string getterReturnType = tableFieldTypeToString(type, fieldDef);
 
-		if (IsBool(type.base_type)) {
-			getterReturnType = "bool";
-		}
-		else if (!IsScalar(type.base_type)) {
-			getterReturnType = fmt::format("const {} *", getterReturnType);
-		}
-
 		// Getter function body.
 		std::string getterBody;
 
 		if (!IsVector(type) && typeIsScalar(type)) {
+			getterBody
+			= fmt::format("GetField<{}>({}, {})", getterReturnType, fieldOffsetName(fieldDef->name),
+						  numericConstant(fieldDef->value.constant, type.base_type, type.enum_def));
+
 			if (IsBool(type.base_type)) {
-				getterBody = fmt::format("return (GetField<{0}>({1}, static_cast<{0}>({2})) != 0);",
-					tableFieldTypeToString(type, fieldDef), fieldOffsetName(fieldDef->name),
-					numericConstant(fieldDef->value.constant, type.base_type, type.enum_def));
-			}
-			else {
-				getterBody
-					= fmt::format("return GetField<{}>({}, {});", getterReturnType, fieldOffsetName(fieldDef->name),
-						numericConstant(fieldDef->value.constant, type.base_type, type.enum_def));
+				getterReturnType = "bool";
+				getterBody = fmt::format("({} != 0)", getterBody);
 			}
 		}
 		else {
-			getterBody = fmt::format("return GetPointer<{}>({});", getterReturnType, fieldOffsetName(fieldDef->name));
+			getterReturnType = fmt::format("const {} *", getterReturnType);
+			getterBody = fmt::format("GetPointer<{}>({})", getterReturnType, fieldOffsetName(fieldDef->name));
 		}
 
 		// Flatbuffers getter.
-		getter += fmt::format("{} {}() const {{ {} }}\n\n", getterReturnType, fieldName(fieldDef->name), getterBody);
+		getter += fmt::format("{} {}() const {{ return {}; }}\n\n", getterReturnType, fieldName(fieldDef->name), getterBody);
 
 		// If union, provide extra getters to get as its sub-types.
 		if (!IsVector(type) && typeIsUnion(type)) {
