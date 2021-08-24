@@ -1120,8 +1120,9 @@ private:
 
 		std::string verifiers;
 
-		verifiers += fmt::format("inline bool Verify{}(flatbuffers::Verifier &verifier, const void *obj, {} type) {{\n",
-			enumName(enumDef), fullyQualifiedEnumName(enumDef));
+		verifiers
+			+= fmt::format("inline bool Verify{}(flatbuffers::Verifier &verifier, const void *obj, const {} type) {{\n",
+				enumName(enumDef), fullyQualifiedEnumName(enumDef));
 		verifiers += "switch (type) {\n";
 		for (const auto *enumVal : enumDef->Vals()) {
 			verifiers += fmt::format("case {}::{}:\n", fullyQualifiedEnumName(enumDef), enumVal->name);
