@@ -5,9 +5,18 @@ package(
 )
 
 filegroup(
+    name = "distribution",
+    srcs = [
+        "BUILD.bazel",
+    ] + glob([
+        "*.cc",
+        "*.h",
+    ]),
+)
+
+filegroup(
     name = "common_headers",
     srcs = [
-        "config.h",
         "schema_interface.h",
     ],
 )
@@ -86,6 +95,8 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = [
         "//:flatbuffers",
+        "//include/codegen:namer",
+        "//include/codegen:python",
     ],
 )
 

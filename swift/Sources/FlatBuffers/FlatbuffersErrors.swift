@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google Inc. All rights reserved.
+ * Copyright 2024 Google Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,12 @@ import Foundation
 /// Collection of thrown from the Flatbuffer verifier
 public enum FlatbuffersErrors: Error, Equatable {
 
+  /// Thrown when trying to verify a buffer that doesnt have the length of an ID
+  case bufferDoesntContainID
+  /// Thrown when verifying a file id that doesnt match buffer id
+  case bufferIdDidntMatchPassedId
+  /// Prefixed size doesnt match the current (readable) buffer size
+  case prefixedSizeNotEqualToBufferSize
   /// Thrown when buffer is bigger than the allowed 2GiB
   case exceedsMaxSizeAllowed
   /// Thrown when there is an missaligned pointer at position
@@ -53,7 +59,17 @@ public enum FlatbuffersErrors: Error, Equatable {
     fieldName: String)
   case apparentSizeTooLarge
 
-  public static func == (lhs: FlatbuffersErrors, rhs: FlatbuffersErrors) -> Bool {
+}
+
+#if !os(WASI)
+
+extension FlatbuffersErrors {
+  public static func == (
+    lhs: FlatbuffersErrors,
+    rhs: FlatbuffersErrors) -> Bool
+  {
     lhs.localizedDescription == rhs.localizedDescription
   }
 }
+
+#endif

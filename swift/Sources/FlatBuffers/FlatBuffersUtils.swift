@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google Inc. All rights reserved.
+ * Copyright 2024 Google Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,8 @@ public enum FlatBuffersUtils {
   /// creates a new buffer use `readPrefixedSizeCheckedRoot` instead
   /// unless a completely new buffer is required
   /// - Parameter bb: Flatbuffer object
+  ///
+  ///
   public static func removeSizePrefix(bb: ByteBuffer) -> ByteBuffer {
     bb.duplicate(removing: MemoryLayout<Int32>.size)
   }

@@ -1,7 +1,19 @@
 use crate::follow::Follow;
 use crate::{ForwardsUOffset, SOffsetT, SkipSizePrefix, UOffsetT, VOffsetT, Vector, SIZE_UOFFSET};
-use std::ops::Range;
-use thiserror::Error;
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+use core::ops::Range;
+use core::option::Option;
+
+#[cfg(not(feature = "std"))]
+use alloc::borrow::Cow;
+#[cfg(feature = "std")]
+use std::borrow::Cow;
+
+#[cfg(all(nightly, not(feature = "std")))]
+use core::error::Error;
+#[cfg(feature = "std")]
+use std::error::Error;
 
 /// Traces the location of data errors. Not populated for Dos detecting errors.
 /// Useful for MissingRequiredField and Utf8Error in particular, though
@@ -13,17 +25,19 @@ pub enum ErrorTraceDetail {
         position: usize,
     },
     TableField {
-        field_name: &'static str,
+        field_name: Cow<'static, str>,
         position: usize,
     },
     UnionVariant {
-        variant: &'static str,
+        variant: Cow<'static, str>,
         position: usize,
     },
 }
+
 #[derive(PartialEq, Eq, Default, Debug, Clone)]
 pub struct ErrorTrace(Vec<ErrorTraceDetail>);
-impl std::convert::AsRef<[ErrorTraceDetail]> for ErrorTrace {
+
+impl core::convert::AsRef<[ErrorTraceDetail]> for ErrorTrace {
     #[inline]
     fn as_ref(&self) -> &[ErrorTraceDetail] {
         &self.0
@@ -32,66 +46,140 @@ impl std::convert::AsRef<[ErrorTraceDetail]> for ErrorTrace {
 
 /// Describes how a flatuffer is invalid and, for data errors, roughly where. No extra tracing
 /// information is given for DoS detecting errors since it will probably be a lot.
-#[derive(Clone, Error, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InvalidFlatbuffer {
-    #[error("Missing required field `{required}`.\n{error_trace}")]
     MissingRequiredField {
-        required: &'static str,
+        required: Cow<'static, str>,
         error_trace: ErrorTrace,
     },
-    #[error(
-        "Union exactly one of union discriminant (`{field_type}`) and value \
-             (`{field}`) are present.\n{error_trace}"
-    )]
     InconsistentUnion {
-        field: &'static str,
-        field_type: &'static str,
+        field: Cow<'static, str>,
+        field_type: Cow<'static, str>,
         error_trace: ErrorTrace,
     },
-    #[error("Utf8 error for string in {range:?}: {error}\n{error_trace}")]
     Utf8Error {
-        #[source]
-        error: std::str::Utf8Error,
+        error: core::str::Utf8Error,
         range: Range<usize>,
         error_trace: ErrorTrace,
     },
-    #[error("String in range [{}, {}) is missing its null terminator.\n{error_trace}",
-            range.start, range.end)]
     MissingNullTerminator {
         range: Range<usize>,
         error_trace: ErrorTrace,
     },
-    #[error("Type `{unaligned_type}` at position {position} is unaligned.\n{error_trace}")]
     Unaligned {
         position: usize,
-        unaligned_type: &'static str,
+        unaligned_type: Cow<'static, str>,
         error_trace: ErrorTrace,
     },
-    #[error("Range [{}, {}) is out of bounds.\n{error_trace}", range.start, range.end)]
     RangeOutOfBounds {
         range: Range<usize>,
         error_trace: ErrorTrace,
     },
-    #[error(
-        "Signed offset at position {position} has value {soffset} which points out of bounds.\
-             \n{error_trace}"
-    )]
     SignedOffsetOutOfBounds {
         soffset: SOffsetT,
         position: usize,
         error_trace: ErrorTrace,
     },
     // Dos detecting errors. These do not get error traces since it will probably be very large.
-    #[error("Too many tables.")]
     TooManyTables,
-    #[error("Apparent size too large.")]
     ApparentSizeTooLarge,
-    #[error("Nested table depth limit reached.")]
     DepthLimitReached,
 }
 
-impl std::fmt::Display for ErrorTrace {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+#[cfg(any(nightly, feature = "std"))]
+impl Error for InvalidFlatbuffer {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        if let InvalidFlatbuffer::Utf8Error { error: source, .. } = self {
+            Some(source)
+        } else {
+            None
+        }
+    }
+}
+
+impl core::fmt::Display for InvalidFlatbuffer {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        match self {
+            InvalidFlatbuffer::MissingRequiredField {
+                required,
+                error_trace,
+            } => {
+                writeln!(f, "Missing required field `{}`.\n{}", required, error_trace)?;
+            }
+            InvalidFlatbuffer::InconsistentUnion {
+                field,
+                field_type,
+                error_trace,
+            } => {
+                writeln!(
+                    f,
+                    "Exactly one of union discriminant (`{}`) and value (`{}`) are present.\n{}",
+                    field_type, field, error_trace
+                )?;
+            }
+            InvalidFlatbuffer::Utf8Error {
+                error,
+                range,
+                error_trace,
+            } => {
+                writeln!(
+                    f,
+                    "Utf8 error for string in {:?}: {}\n{}",
+                    range, error, error_trace
+                )?;
+            }
+            InvalidFlatbuffer::MissingNullTerminator { range, error_trace } => {
+                writeln!(
+                    f,
+                    "String in range [{}, {}) is missing its null terminator.\n{}",
+                    range.start, range.end, error_trace
+                )?;
+            }
+            InvalidFlatbuffer::Unaligned {
+                position,
+                unaligned_type,
+                error_trace,
+            } => {
+                writeln!(
+                    f,
+                    "Type `{}` at position {} is unaligned.\n{}",
+                    unaligned_type, position, error_trace
+                )?;
+            }
+            InvalidFlatbuffer::RangeOutOfBounds { range, error_trace } => {
+                writeln!(
+                    f,
+                    "Range [{}, {}) is out of bounds.\n{}",
+                    range.start, range.end, error_trace
+                )?;
+            }
+            InvalidFlatbuffer::SignedOffsetOutOfBounds {
+                soffset,
+                position,
+                error_trace,
+            } => {
+                writeln!(
+                    f,
+                    "Signed offset at position {} has value {} which points out of bounds.\n{}",
+                    position, soffset, error_trace
+                )?;
+            }
+            InvalidFlatbuffer::TooManyTables {} => {
+                writeln!(f, "Too many tables.")?;
+            }
+            InvalidFlatbuffer::ApparentSizeTooLarge {} => {
+                writeln!(f, "Apparent size too large.")?;
+            }
+            InvalidFlatbuffer::DepthLimitReached {} => {
+                writeln!(f, "Nested table depth limit reached.")?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl core::fmt::Display for ErrorTrace {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         use ErrorTraceDetail::*;
         for e in self.0.iter() {
             match e {
@@ -125,7 +213,7 @@ impl std::fmt::Display for ErrorTrace {
     }
 }
 
-pub type Result<T> = std::prelude::v1::Result<T, InvalidFlatbuffer>;
+pub type Result<T> = core::result::Result<T, InvalidFlatbuffer>;
 
 impl InvalidFlatbuffer {
     fn new_range_oob<T>(start: usize, end: usize) -> Result<T> {
@@ -134,16 +222,19 @@ impl InvalidFlatbuffer {
             error_trace: Default::default(),
         })
     }
-    fn new_inconsistent_union<T>(field: &'static str, field_type: &'static str) -> Result<T> {
+    pub fn new_inconsistent_union<T>(
+        field: impl Into<Cow<'static, str>>,
+        field_type: impl Into<Cow<'static, str>>,
+    ) -> Result<T> {
         Err(Self::InconsistentUnion {
-            field,
-            field_type,
+            field: field.into(),
+            field_type: field_type.into(),
             error_trace: Default::default(),
         })
     }
-    fn new_missing_required<T>(required: &'static str) -> Result<T> {
+    pub fn new_missing_required<T>(required: impl Into<Cow<'static, str>>) -> Result<T> {
         Err(Self::MissingRequiredField {
-            required,
+            required: required.into(),
             error_trace: Default::default(),
         })
     }
@@ -168,7 +259,7 @@ fn append_trace<T>(mut res: Result<T>, d: ErrorTraceDetail) -> Result<T> {
 }
 
 /// Adds a TableField trace detail if `res` is a data error.
-fn trace_field<T>(res: Result<T>, field_name: &'static str, position: usize) -> Result<T> {
+fn trace_field<T>(res: Result<T>, field_name: Cow<'static, str>, position: usize) -> Result<T> {
     append_trace(
         res,
         ErrorTraceDetail::TableField {
@@ -177,6 +268,7 @@ fn trace_field<T>(res: Result<T>, field_name: &'static str, position: usize) -> 
         },
     )
 }
+
 /// Adds a TableField trace detail if `res` is a data error.
 fn trace_elem<T>(res: Result<T>, index: usize, position: usize) -> Result<T> {
     append_trace(res, ErrorTraceDetail::VectorElement { index, position })
@@ -198,6 +290,7 @@ pub struct VerifierOptions {
     // options to error un-recognized enums and unions? possible footgun.
     // Ignore nested flatbuffers, etc?
 }
+
 impl Default for VerifierOptions {
     fn default() -> Self {
         Self {
@@ -219,6 +312,7 @@ pub struct Verifier<'opts, 'buf> {
     num_tables: usize,
     apparent_size: usize,
 }
+
 impl<'opts, 'buf> Verifier<'opts, 'buf> {
     pub fn new(opts: &'opts VerifierOptions, buffer: &'buf [u8]) -> Self {
         Self {
@@ -240,23 +334,26 @@ impl<'opts, 'buf> Verifier<'opts, 'buf> {
     /// memory since `buffer: &[u8]` has alignment 1.
     ///
     /// ### WARNING
+    ///
     /// This does not work for flatbuffers-structs as they have alignment 1 according to
     /// `core::mem::align_of` but are meant to have higher alignment within a Flatbuffer w.r.t.
     /// `buffer[0]`. TODO(caspern).
+    ///
+    /// Note this does not impact soundness as this crate does not assume alignment of structs
     #[inline]
-    fn is_aligned<T>(&self, pos: usize) -> Result<()> {
-        if pos % std::mem::align_of::<T>() == 0 {
+    pub fn is_aligned<T>(&self, pos: usize) -> Result<()> {
+        if pos % core::mem::align_of::<T>() == 0 {
             Ok(())
         } else {
             Err(InvalidFlatbuffer::Unaligned {
-                unaligned_type: std::any::type_name::<T>(),
+                unaligned_type: Cow::Borrowed(core::any::type_name::<T>()),
                 position: pos,
                 error_trace: Default::default(),
             })
         }
     }
     #[inline]
-    fn range_in_buffer(&mut self, pos: usize, size: usize) -> Result<()> {
+    pub fn range_in_buffer(&mut self, pos: usize, size: usize) -> Result<()> {
         let end = pos.saturating_add(size);
         if end > self.buffer.len() {
             return InvalidFlatbuffer::new_range_oob(pos, end);
@@ -271,7 +368,12 @@ impl<'opts, 'buf> Verifier<'opts, 'buf> {
     #[inline]
     pub fn in_buffer<T>(&mut self, pos: usize) -> Result<()> {
         self.is_aligned::<T>(pos)?;
-        self.range_in_buffer(pos, std::mem::size_of::<T>())
+        self.range_in_buffer(pos, core::mem::size_of::<T>())
+    }
+    #[inline]
+    pub fn get_u8(&mut self, pos: usize) -> Result<u8> {
+        self.in_buffer::<u8>(pos)?;
+        Ok(u8::from_le_bytes([self.buffer[pos]]))
     }
     #[inline]
     fn get_u16(&mut self, pos: usize) -> Result<u16> {
@@ -279,7 +381,7 @@ impl<'opts, 'buf> Verifier<'opts, 'buf> {
         Ok(u16::from_le_bytes([self.buffer[pos], self.buffer[pos + 1]]))
     }
     #[inline]
-    fn get_uoffset(&mut self, pos: usize) -> Result<UOffsetT> {
+    pub fn get_uoffset(&mut self, pos: usize) -> Result<UOffsetT> {
         self.in_buffer::<u32>(pos)?;
         Ok(u32::from_le_bytes([
             self.buffer[pos],
@@ -300,9 +402,9 @@ impl<'opts, 'buf> Verifier<'opts, 'buf> {
 
         // signed offsets are subtracted.
         let derefed = if offset > 0 {
-            pos.checked_sub(offset.abs() as usize)
+            pos.checked_sub(offset.unsigned_abs() as usize)
         } else {
-            pos.checked_add(offset.abs() as usize)
+            pos.checked_add(offset.unsigned_abs() as usize)
         };
         if let Some(x) = derefed {
             if x < self.buffer.len() {
@@ -345,11 +447,17 @@ impl<'opts, 'buf> Verifier<'opts, 'buf> {
     /// tracing the error.
     pub fn verify_union_variant<T: Verifiable>(
         &mut self,
-        variant: &'static str,
+        variant: impl Into<Cow<'static, str>>,
         position: usize,
     ) -> Result<()> {
         let res = T::run_verifier(self, position);
-        append_trace(res, ErrorTraceDetail::UnionVariant { variant, position })
+        append_trace(
+            res,
+            ErrorTraceDetail::UnionVariant {
+                variant: variant.into(),
+                position,
+            },
+        )
     }
 }
 
@@ -365,8 +473,9 @@ pub struct TableVerifier<'ver, 'opts, 'buf> {
     // Verifier struct which holds the surrounding state and options.
     verifier: &'ver mut Verifier<'opts, 'buf>,
 }
+
 impl<'ver, 'opts, 'buf> TableVerifier<'ver, 'opts, 'buf> {
-    fn deref(&mut self, field: VOffsetT) -> Result<Option<usize>> {
+    pub fn deref(&mut self, field: VOffsetT) -> Result<Option<usize>> {
         let field = field as usize;
         if field < self.vtable_len {
             let field_offset = self.verifier.get_u16(self.vtable.saturating_add(field))?;
@@ -380,22 +489,27 @@ impl<'ver, 'opts, 'buf> TableVerifier<'ver, 'opts, 'buf> {
     }
 
     #[inline]
+    pub fn verifier(&mut self) -> &mut Verifier<'opts, 'buf> {
+        self.verifier
+    }
+
+    #[inline]
     pub fn visit_field<T: Verifiable>(
         mut self,
-        field_name: &'static str,
+        field_name: impl Into<Cow<'static, str>>,
         field: VOffsetT,
         required: bool,
     ) -> Result<Self> {
         if let Some(field_pos) = self.deref(field)? {
             trace_field(
                 T::run_verifier(self.verifier, field_pos),
-                field_name,
+                field_name.into(),
                 field_pos,
             )?;
             return Ok(self);
         }
         if required {
-            InvalidFlatbuffer::new_missing_required(field_name)
+            InvalidFlatbuffer::new_missing_required(field_name.into())
         } else {
             Ok(self)
         }
@@ -406,9 +520,9 @@ impl<'ver, 'opts, 'buf> TableVerifier<'ver, 'opts, 'buf> {
     /// reads the key, then invokes the callback to perform data-dependent verification.
     pub fn visit_union<Key, UnionVerifier>(
         mut self,
-        key_field_name: &'static str,
+        key_field_name: impl Into<Cow<'static, str>>,
         key_field_voff: VOffsetT,
-        val_field_name: &'static str,
+        val_field_name: impl Into<Cow<'static, str>>,
         val_field_voff: VOffsetT,
         required: bool,
         verify_union: UnionVerifier,
@@ -416,7 +530,7 @@ impl<'ver, 'opts, 'buf> TableVerifier<'ver, 'opts, 'buf> {
     where
         Key: Follow<'buf> + Verifiable,
         UnionVerifier:
-            (std::ops::FnOnce(<Key as Follow<'buf>>::Inner, &mut Verifier, usize) -> Result<()>),
+            (core::ops::FnOnce(<Key as Follow<'buf>>::Inner, &mut Verifier, usize) -> Result<()>),
         // NOTE: <Key as Follow<'buf>>::Inner == Key
     {
         // TODO(caspern): how to trace vtable errors?
@@ -425,22 +539,28 @@ impl<'ver, 'opts, 'buf> TableVerifier<'ver, 'opts, 'buf> {
         match (key_pos, val_pos) {
             (None, None) => {
                 if required {
-                    InvalidFlatbuffer::new_missing_required(val_field_name)
+                    InvalidFlatbuffer::new_missing_required(val_field_name.into())
                 } else {
                     Ok(self)
                 }
             }
             (Some(k), Some(v)) => {
-                trace_field(Key::run_verifier(self.verifier, k), key_field_name, k)?;
-                let discriminant = Key::follow(self.verifier.buffer, k);
+                trace_field(
+                    Key::run_verifier(self.verifier, k),
+                    key_field_name.into(),
+                    k,
+                )?;
+                // Safety:
+                // Run verifier on `k` above
+                let discriminant = unsafe { Key::follow(self.verifier.buffer, k) };
                 trace_field(
                     verify_union(discriminant, self.verifier, v),
-                    val_field_name,
+                    val_field_name.into(),
                     v,
                 )?;
                 Ok(self)
             }
-            _ => InvalidFlatbuffer::new_inconsistent_union(key_field_name, val_field_name),
+            _ => InvalidFlatbuffer::new_inconsistent_union(key_field_name.into(), val_field_name.into()),
         }
     }
     pub fn finish(self) -> &'ver mut Verifier<'opts, 'buf> {
@@ -468,27 +588,38 @@ impl<T: Verifiable> Verifiable for ForwardsUOffset<T> {
 }
 
 /// Checks and returns the range containing the flatbuffers vector.
-fn verify_vector_range<T>(v: &mut Verifier, pos: usize) -> Result<std::ops::Range<usize>> {
+fn verify_vector_range<T>(v: &mut Verifier, pos: usize) -> Result<core::ops::Range<usize>> {
     let len = v.get_uoffset(pos)? as usize;
     let start = pos.saturating_add(SIZE_UOFFSET);
     v.is_aligned::<T>(start)?;
-    let size = len.saturating_mul(std::mem::size_of::<T>());
+    let size = len.saturating_mul(core::mem::size_of::<T>());
     let end = start.saturating_add(size);
     v.range_in_buffer(start, size)?;
-    Ok(std::ops::Range { start, end })
+    Ok(core::ops::Range { start, end })
 }
 
 pub trait SimpleToVerifyInSlice {}
+
 impl SimpleToVerifyInSlice for bool {}
+
 impl SimpleToVerifyInSlice for i8 {}
+
 impl SimpleToVerifyInSlice for u8 {}
+
 impl SimpleToVerifyInSlice for i16 {}
+
 impl SimpleToVerifyInSlice for u16 {}
+
 impl SimpleToVerifyInSlice for i32 {}
+
 impl SimpleToVerifyInSlice for u32 {}
+
 impl SimpleToVerifyInSlice for f32 {}
+
 impl SimpleToVerifyInSlice for i64 {}
+
 impl SimpleToVerifyInSlice for u64 {}
+
 impl SimpleToVerifyInSlice for f64 {}
 
 impl<T: SimpleToVerifyInSlice> Verifiable for Vector<'_, T> {
@@ -509,7 +640,7 @@ impl<T: Verifiable> Verifiable for Vector<'_, ForwardsUOffset<T>> {
     #[inline]
     fn run_verifier(v: &mut Verifier, pos: usize) -> Result<()> {
         let range = verify_vector_range::<ForwardsUOffset<T>>(v, pos)?;
-        let size = std::mem::size_of::<ForwardsUOffset<T>>();
+        let size = core::mem::size_of::<ForwardsUOffset<T>>();
         for (i, element_pos) in range.step_by(size).enumerate() {
             trace_elem(
                 <ForwardsUOffset<T>>::run_verifier(v, element_pos),
@@ -526,7 +657,7 @@ impl<'a> Verifiable for &'a str {
     fn run_verifier(v: &mut Verifier, pos: usize) -> Result<()> {
         let range = verify_vector_range::<u8>(v, pos)?;
         let has_null_terminator = v.buffer.get(range.end).map(|&b| b == 0).unwrap_or(false);
-        let s = std::str::from_utf8(&v.buffer[range.clone()]);
+        let s = core::str::from_utf8(&v.buffer[range.clone()]);
         if let Err(error) = s {
             return Err(InvalidFlatbuffer::Utf8Error {
                 error,

@@ -2,6 +2,9 @@
 
 # namespace: NamespaceB
 
+class UnionInNestedNS(object):
+    NONE = 0
+    TableInNestedNS = 1
 
 def UnionInNestedNSCreator(unionType, table):
     from flatbuffers.table import Table

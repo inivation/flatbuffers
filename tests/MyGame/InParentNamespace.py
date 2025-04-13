@@ -28,14 +28,18 @@ class InParentNamespace(object):
     def Init(self, buf, pos):
         self._tab = flatbuffers.table.Table(buf, pos)
 
-def Start(builder): builder.StartObject(0)
 def InParentNamespaceStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def End(builder): return builder.EndObject()
+    builder.StartObject(0)
+
+def Start(builder):
+    InParentNamespaceStart(builder)
+
 def InParentNamespaceEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return InParentNamespaceEnd(builder)
+
 
 class InParentNamespaceT(object):
 
@@ -50,6 +54,11 @@ class InParentNamespaceT(object):
         return cls.InitFromObj(inParentNamespace)
 
     @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
+
+    @classmethod
     def InitFromObj(cls, inParentNamespace):
         x = InParentNamespaceT()
         x._UnPack(inParentNamespace)
@@ -62,6 +71,6 @@ class InParentNamespaceT(object):
 
     # InParentNamespaceT
     def Pack(self, builder):
-        Start(builder)
-        inParentNamespace = End(builder)
+        InParentNamespaceStart(builder)
+        inParentNamespace = InParentNamespaceEnd(builder)
         return inParentNamespace

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google Inc. All rights reserved.
+ * Copyright 2024 Google Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,9 @@ extension String: Verifiable {
 
     if !verifier._options._ignoreMissingNullTerminators && !isNullTerminated {
       let str = verifier._buffer.readString(at: range.start, count: range.count)
-      throw FlatbuffersErrors.missingNullTerminator(position: position, str: str)
+      throw FlatbuffersErrors.missingNullTerminator(
+        position: position,
+        str: str)
     }
   }
 }
@@ -62,19 +64,25 @@ extension String: FlatbuffersInitializable {
     let v = Int(o)
     let count = bb.read(def: Int32.self, position: v)
     self = bb.readString(
-      at: MemoryLayout<Int32>.size + v,
+      at: MemoryLayout<Int32>.size &+ v,
       count: Int(count)) ?? ""
   }
 }
 
 extension String: ObjectAPIPacker {
 
-  public static func pack(_ builder: inout FlatBufferBuilder, obj: inout String?) -> Offset {
+  public static func pack(
+    _ builder: inout FlatBufferBuilder,
+    obj: inout String?) -> Offset
+  {
     guard var obj = obj else { return Offset() }
     return pack(&builder, obj: &obj)
   }
 
-  public static func pack(_ builder: inout FlatBufferBuilder, obj: inout String) -> Offset {
+  public static func pack(
+    _ builder: inout FlatBufferBuilder,
+    obj: inout String) -> Offset
+  {
     builder.create(string: obj)
   }
 
@@ -86,7 +94,9 @@ extension String: ObjectAPIPacker {
 
 extension String: NativeObject {
 
-  public func serialize<T: ObjectAPIPacker>(type: T.Type) -> ByteBuffer where T.T == Self {
+  public func serialize<T: ObjectAPIPacker>(type: T.Type) -> ByteBuffer
+    where T.T == Self
+  {
     fatalError("serialize should never be called from string directly")
   }
 

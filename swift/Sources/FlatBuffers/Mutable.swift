@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google Inc. All rights reserved.
+ * Copyright 2024 Google Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,17 @@
 
 import Foundation
 
-/// Mutable is a protocol that allows us to mutate Scalar values within the buffer
+/// Mutable is a protocol that allows us to mutate Scalar values within a ``ByteBuffer``
 public protocol Mutable {
   /// makes Flatbuffer accessed within the Protocol
   var bb: ByteBuffer { get }
-  /// makes position of the table/struct  accessed within the Protocol
-  var postion: Int32 { get }
+  /// makes position of the ``Table``/``Struct`` accessed within the Protocol
+  var position: Int32 { get }
 }
 
 extension Mutable {
 
-  /// Mutates the memory in the buffer, this is only called from the access function of table and structs
+  /// Mutates the memory in the buffer, this is only called from the access function of ``Table`` and ``struct``
   /// - Parameters:
   ///   - value: New value to be inserted to the buffer
   ///   - index: index of the Element
@@ -39,13 +39,13 @@ extension Mutable {
 
 extension Mutable where Self == Table {
 
-  /// Mutates a value by calling mutate with respect to the position in the table
+  /// Mutates a value by calling mutate with respect to the position in a ``Table``
   /// - Parameters:
   ///   - value: New value to be inserted to the buffer
   ///   - index: index of the Element
   public func mutate<T: Scalar>(_ value: T, index: Int32) -> Bool {
     guard index != 0 else { return false }
-    return mutate(value: value, o: index + postion)
+    return mutate(value: value, o: index + position)
   }
 
   /// Directly mutates the element by calling mutate
@@ -66,7 +66,7 @@ extension Mutable where Self == Struct {
   ///   - value: New value to be inserted to the buffer
   ///   - index: index of the Element
   public func mutate<T: Scalar>(_ value: T, index: Int32) -> Bool {
-    mutate(value: value, o: index + postion)
+    mutate(value: value, o: index + position)
   }
 
   /// Directly mutates the element by calling mutate

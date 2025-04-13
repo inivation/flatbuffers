@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google Inc. All rights reserved.
+ * Copyright 2024 Google Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,8 @@ class Greeter: models_GreeterProvider {
 
   func SayHello(
     request: Message<models_HelloRequest>,
-    context: StatusOnlyCallContext) -> EventLoopFuture<Message<models_HelloReply>>
+    context: StatusOnlyCallContext)
+    -> EventLoopFuture<Message<models_HelloReply>>
   {
     let recipient = request.object.name ?? "Stranger"
 
@@ -40,17 +41,22 @@ class Greeter: models_GreeterProvider {
     let off = builder.create(string: "Hello \(recipient)")
     let root = models_HelloReply.createHelloReply(&builder, messageOffset: off)
     builder.finish(offset: root)
-    return context.eventLoop.makeSucceededFuture(Message<models_HelloReply>(builder: &builder))
+    return context.eventLoop
+      .makeSucceededFuture(Message<models_HelloReply>(builder: &builder))
   }
 
   func SayManyHellos(
     request: Message<models_HelloRequest>,
-    context: StreamingResponseCallContext<Message<models_HelloReply>>) -> EventLoopFuture<GRPCStatus>
+    context: StreamingResponseCallContext<Message<models_HelloReply>>)
+    -> EventLoopFuture<GRPCStatus>
   {
     for name in greetings {
       var builder = FlatBufferBuilder()
-      let off = builder.create(string: "\(name) \(request.object.name ?? "Unknown")")
-      let root = models_HelloReply.createHelloReply(&builder, messageOffset: off)
+      let off = builder
+        .create(string: "\(name) \(request.object.name ?? "Unknown")")
+      let root = models_HelloReply.createHelloReply(
+        &builder,
+        messageOffset: off)
       builder.finish(offset: root)
       _ = context.sendResponse(Message<models_HelloReply>(builder: &builder))
     }

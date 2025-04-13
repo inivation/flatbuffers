@@ -1,7 +1,3 @@
-// Copyright (c) 2016, the Dart project authors.  Please see the AUTHORS file
-// for details. All rights reserved. Use of this source code is governed by a
-// BSD-style license that can be found in the LICENSE file.
-
 import 'dart:typed_data';
 import 'dart:io' as io;
 
@@ -13,6 +9,8 @@ import 'package:test_reflective_loader/test_reflective_loader.dart';
 
 import './monster_test_my_game.example_generated.dart' as example;
 import './monster_test_my_game.example2_generated.dart' as example2;
+import 'enums_generated.dart' as example3;
+import './bool_structs_generated.dart' as example4;
 
 main() {
   defineReflectiveSuite(() {
@@ -20,6 +18,7 @@ main() {
     defineReflectiveTests(ObjectAPITest);
     defineReflectiveTests(CheckOtherLangaugesData);
     defineReflectiveTests(GeneratorTest);
+    defineReflectiveTests(ListOfEnumsTest);
   });
 }
 
@@ -30,12 +29,12 @@ int indexToField(int index) {
 @reflectiveTest
 class CheckOtherLangaugesData {
   test_cppData() async {
-    List<int> data = await new io.File(path.join(
+    List<int> data = await io.File(path.join(
       path.context.current,
       'test',
       'monsterdata_test.mon',
     )).readAsBytes();
-    example.Monster mon = new example.Monster(data);
+    example.Monster mon = example.Monster(data);
     expect(mon.hp, 80);
     expect(mon.mana, 150);
     expect(mon.name, 'MyMonster');
@@ -62,74 +61,91 @@ class CheckOtherLangaugesData {
 
     // this will fail if accessing any field fails.
     expect(
-      mon.toString(),
-      'Monster{'
-      'pos: Vec3{x: 1.0, y: 2.0, z: 3.0, test1: 3.0, test2: Color{value: 2}, test3: Test{a: 5, b: 6}}, '
-      'mana: 150, hp: 80, name: MyMonster, inventory: [0, 1, 2, 3, 4], '
-      'color: Color{value: 8}, testType: AnyTypeId{value: 1}, '
-      'test: Monster{pos: null, mana: 150, hp: 100, name: Fred, '
-      'inventory: null, color: Color{value: 8}, testType: null, '
-      'test: null, test4: null, testarrayofstring: null, '
-      'testarrayoftables: null, enemy: null, testnestedflatbuffer: null, '
-      'testempty: null, testbool: false, testhashs32Fnv1: 0, '
-      'testhashu32Fnv1: 0, testhashs64Fnv1: 0, testhashu64Fnv1: 0, '
-      'testhashs32Fnv1a: 0, testhashu32Fnv1a: 0, testhashs64Fnv1a: 0, '
-      'testhashu64Fnv1a: 0, testarrayofbools: null, testf: 3.14159, '
-      'testf2: 3.0, testf3: 0.0, testarrayofstring2: null, '
-      'testarrayofsortedstruct: null, flex: null, test5: null, '
-      'vectorOfLongs: null, vectorOfDoubles: null, parentNamespaceTest: null, '
-      'vectorOfReferrables: null, singleWeakReference: 0, '
-      'vectorOfWeakReferences: null, vectorOfStrongReferrables: null, '
-      'coOwningReference: 0, vectorOfCoOwningReferences: null, '
-      'nonOwningReference: 0, vectorOfNonOwningReferences: null, '
-      'anyUniqueType: null, anyUnique: null, anyAmbiguousType: null, '
-      'anyAmbiguous: null, vectorOfEnums: null, signedEnum: Race{value: -1}, '
-      'testrequirednestedflatbuffer: null, scalarKeySortedTables: null}, '
-      'test4: [Test{a: 10, b: 20}, Test{a: 30, b: 40}], '
-      'testarrayofstring: [test1, test2], testarrayoftables: null, '
-      'enemy: Monster{pos: null, mana: 150, hp: 100, name: Fred, '
-      'inventory: null, color: Color{value: 8}, testType: null, '
-      'test: null, test4: null, testarrayofstring: null, '
-      'testarrayoftables: null, enemy: null, testnestedflatbuffer: null, '
-      'testempty: null, testbool: false, testhashs32Fnv1: 0, '
-      'testhashu32Fnv1: 0, testhashs64Fnv1: 0, testhashu64Fnv1: 0, '
-      'testhashs32Fnv1a: 0, testhashu32Fnv1a: 0, testhashs64Fnv1a: 0, '
-      'testhashu64Fnv1a: 0, testarrayofbools: null, testf: 3.14159, '
-      'testf2: 3.0, testf3: 0.0, testarrayofstring2: null, '
-      'testarrayofsortedstruct: null, flex: null, test5: null, '
-      'vectorOfLongs: null, vectorOfDoubles: null, parentNamespaceTest: null, '
-      'vectorOfReferrables: null, singleWeakReference: 0, '
-      'vectorOfWeakReferences: null, vectorOfStrongReferrables: null, '
-      'coOwningReference: 0, vectorOfCoOwningReferences: null, '
-      'nonOwningReference: 0, vectorOfNonOwningReferences: null, '
-      'anyUniqueType: null, anyUnique: null, anyAmbiguousType: null, '
-      'anyAmbiguous: null, vectorOfEnums: null, signedEnum: Race{value: -1}, '
-      'testrequirednestedflatbuffer: null, scalarKeySortedTables: null}, '
-      'testnestedflatbuffer: null, testempty: null, testbool: true, '
-      'testhashs32Fnv1: -579221183, testhashu32Fnv1: 3715746113, '
-      'testhashs64Fnv1: 7930699090847568257, '
-      'testhashu64Fnv1: 7930699090847568257, '
-      'testhashs32Fnv1a: -1904106383, testhashu32Fnv1a: 2390860913, '
-      'testhashs64Fnv1a: 4898026182817603057, '
-      'testhashu64Fnv1a: 4898026182817603057, '
-      'testarrayofbools: [true, false, true], testf: 3.14159, testf2: 3.0, '
-      'testf3: 0.0, testarrayofstring2: null, testarrayofsortedstruct: ['
-      'Ability{id: 0, distance: 45}, Ability{id: 1, distance: 21}, '
-      'Ability{id: 5, distance: 12}], '
-      'flex: null, test5: [Test{a: 10, b: 20}, Test{a: 30, b: 40}], '
-      'vectorOfLongs: [1, 100, 10000, 1000000, 100000000], '
-      'vectorOfDoubles: [-1.7976931348623157e+308, 0.0, 1.7976931348623157e+308], '
-      'parentNamespaceTest: null, vectorOfReferrables: null, '
-      'singleWeakReference: 0, vectorOfWeakReferences: null, '
-      'vectorOfStrongReferrables: null, coOwningReference: 0, '
-      'vectorOfCoOwningReferences: null, nonOwningReference: 0, '
-      'vectorOfNonOwningReferences: null, '
-      'anyUniqueType: null, anyUnique: null, '
-      'anyAmbiguousType: null, '
-      'anyAmbiguous: null, vectorOfEnums: null, signedEnum: Race{value: -1}, '
-      'testrequirednestedflatbuffer: null, scalarKeySortedTables: [Stat{id: '
-      'miss, val: 0, count: 0}, Stat{id: hit, val: 10, count: 1}]}',
-    );
+        mon.toString(),
+        'Monster{'
+        'pos: Vec3{x: 1.0, y: 2.0, z: 3.0, test1: 3.0, test2: Color.Green, test3: Test{a: 5, b: 6}}, '
+        'mana: 150, hp: 80, name: MyMonster, inventory: [0, 1, 2, 3, 4], '
+        'color: Color.Blue, testType: AnyTypeId.Monster, '
+        'test: Monster{pos: null, mana: 150, hp: 100, name: Fred, '
+        'inventory: null, color: Color.Blue, testType: null, '
+        'test: null, test4: null, testarrayofstring: null, '
+        'testarrayoftables: null, enemy: null, testnestedflatbuffer: null, '
+        'testempty: null, testbool: false, testhashs32Fnv1: 0, '
+        'testhashu32Fnv1: 0, testhashs64Fnv1: 0, testhashu64Fnv1: 0, '
+        'testhashs32Fnv1a: 0, testhashu32Fnv1a: 0, testhashs64Fnv1a: 0, '
+        'testhashu64Fnv1a: 0, testarrayofbools: null, testf: 3.14159, '
+        'testf2: 3.0, testf3: 0.0, testarrayofstring2: null, '
+        'testarrayofsortedstruct: null, flex: null, test5: null, '
+        'vectorOfLongs: null, vectorOfDoubles: null, parentNamespaceTest: null, '
+        'vectorOfReferrables: null, singleWeakReference: 0, '
+        'vectorOfWeakReferences: null, vectorOfStrongReferrables: null, '
+        'coOwningReference: 0, vectorOfCoOwningReferences: null, '
+        'nonOwningReference: 0, vectorOfNonOwningReferences: null, '
+        'anyUniqueType: null, anyUnique: null, anyAmbiguousType: null, '
+        'anyAmbiguous: null, vectorOfEnums: null, signedEnum: Race.None, '
+        'testrequirednestedflatbuffer: null, scalarKeySortedTables: null, '
+        'nativeInline: null, '
+        'longEnumNonEnumDefault: LongEnum._default, '
+        'longEnumNormalDefault: LongEnum.LongOne, nanDefault: NaN, '
+        'infDefault: Infinity, positiveInfDefault: Infinity, infinityDefault: '
+        'Infinity, positiveInfinityDefault: Infinity, negativeInfDefault: '
+        '-Infinity, negativeInfinityDefault: -Infinity, doubleInfDefault: Infinity}, '
+        'test4: [Test{a: 10, b: 20}, Test{a: 30, b: 40}], '
+        'testarrayofstring: [test1, test2], testarrayoftables: null, '
+        'enemy: Monster{pos: null, mana: 150, hp: 100, name: Fred, '
+        'inventory: null, color: Color.Blue, testType: null, '
+        'test: null, test4: null, testarrayofstring: null, '
+        'testarrayoftables: null, enemy: null, testnestedflatbuffer: null, '
+        'testempty: null, testbool: false, testhashs32Fnv1: 0, '
+        'testhashu32Fnv1: 0, testhashs64Fnv1: 0, testhashu64Fnv1: 0, '
+        'testhashs32Fnv1a: 0, testhashu32Fnv1a: 0, testhashs64Fnv1a: 0, '
+        'testhashu64Fnv1a: 0, testarrayofbools: null, testf: 3.14159, '
+        'testf2: 3.0, testf3: 0.0, testarrayofstring2: null, '
+        'testarrayofsortedstruct: null, flex: null, test5: null, '
+        'vectorOfLongs: null, vectorOfDoubles: null, parentNamespaceTest: null, '
+        'vectorOfReferrables: null, singleWeakReference: 0, '
+        'vectorOfWeakReferences: null, vectorOfStrongReferrables: null, '
+        'coOwningReference: 0, vectorOfCoOwningReferences: null, '
+        'nonOwningReference: 0, vectorOfNonOwningReferences: null, '
+        'anyUniqueType: null, anyUnique: null, anyAmbiguousType: null, '
+        'anyAmbiguous: null, vectorOfEnums: null, signedEnum: Race.None, '
+        'testrequirednestedflatbuffer: null, scalarKeySortedTables: null, '
+        'nativeInline: null, '
+        'longEnumNonEnumDefault: LongEnum._default, '
+        'longEnumNormalDefault: LongEnum.LongOne, nanDefault: NaN, '
+        'infDefault: Infinity, positiveInfDefault: Infinity, infinityDefault: '
+        'Infinity, positiveInfinityDefault: Infinity, negativeInfDefault: '
+        '-Infinity, negativeInfinityDefault: -Infinity, doubleInfDefault: Infinity}, '
+        'testnestedflatbuffer: null, testempty: null, testbool: true, '
+        'testhashs32Fnv1: -579221183, testhashu32Fnv1: 3715746113, '
+        'testhashs64Fnv1: 7930699090847568257, '
+        'testhashu64Fnv1: 7930699090847568257, '
+        'testhashs32Fnv1a: -1904106383, testhashu32Fnv1a: 2390860913, '
+        'testhashs64Fnv1a: 4898026182817603057, '
+        'testhashu64Fnv1a: 4898026182817603057, '
+        'testarrayofbools: [true, false, true], testf: 3.14159, testf2: 3.0, '
+        'testf3: 0.0, testarrayofstring2: null, testarrayofsortedstruct: ['
+        'Ability{id: 0, distance: 45}, Ability{id: 1, distance: 21}, '
+        'Ability{id: 5, distance: 12}], '
+        'flex: null, test5: [Test{a: 10, b: 20}, Test{a: 30, b: 40}], '
+        'vectorOfLongs: [1, 100, 10000, 1000000, 100000000], '
+        'vectorOfDoubles: [-1.7976931348623157e+308, 0.0, 1.7976931348623157e+308], '
+        'parentNamespaceTest: null, vectorOfReferrables: null, '
+        'singleWeakReference: 0, vectorOfWeakReferences: null, '
+        'vectorOfStrongReferrables: null, coOwningReference: 0, '
+        'vectorOfCoOwningReferences: null, nonOwningReference: 0, '
+        'vectorOfNonOwningReferences: null, '
+        'anyUniqueType: null, anyUnique: null, '
+        'anyAmbiguousType: null, '
+        'anyAmbiguous: null, vectorOfEnums: null, signedEnum: Race.None, '
+        'testrequirednestedflatbuffer: null, scalarKeySortedTables: [Stat{id: '
+        'miss, val: 0, count: 0}, Stat{id: hit, val: 10, count: 1}], '
+        'nativeInline: Test{a: 1, b: 2}, '
+        'longEnumNonEnumDefault: LongEnum._default, '
+        'longEnumNormalDefault: LongEnum.LongOne, nanDefault: NaN, '
+        'infDefault: Infinity, positiveInfDefault: Infinity, infinityDefault: '
+        'Infinity, positiveInfinityDefault: Infinity, negativeInfDefault: '
+        '-Infinity, negativeInfinityDefault: -Infinity, doubleInfDefault: Infinity}');
   }
 }
 
@@ -156,7 +172,7 @@ class CustomAllocator extends Allocator {
 @reflectiveTest
 class BuilderTest {
   void test_monsterBuilder([Builder? builder]) {
-    final fbBuilder = builder ?? new Builder();
+    final fbBuilder = builder ?? Builder();
     final str = fbBuilder.writeString('MyMonster');
 
     fbBuilder.writeString('test1');
@@ -168,12 +184,12 @@ class BuilderTest {
     final List<int> treasure = [0, 1, 2, 3, 4];
     final inventory = fbBuilder.writeListUint8(treasure);
 
-    final monBuilder = new example.MonsterBuilder(fbBuilder)
+    final monBuilder = example.MonsterBuilder(fbBuilder)
       ..begin()
       ..addNameOffset(fred);
     final mon2 = monBuilder.finish();
 
-    final testBuilder = new example.TestBuilder(fbBuilder);
+    final testBuilder = example.TestBuilder(fbBuilder);
     testBuilder.finish(10, 20);
     testBuilder.finish(30, 40);
     final test4 = fbBuilder.endStructVector(2);
@@ -181,7 +197,7 @@ class BuilderTest {
     monBuilder
       ..begin()
       ..addPos(
-        new example.Vec3Builder(fbBuilder).finish(
+        example.Vec3Builder(fbBuilder).finish(
           1.0,
           2.0,
           3.0,
@@ -199,49 +215,53 @@ class BuilderTest {
       ..addTestarrayofstringOffset(testArrayOfString);
     final mon = monBuilder.finish();
     fbBuilder.finish(mon);
+
+    final mon3 = example.Monster(fbBuilder.buffer);
+    expect(mon3.name, 'MyMonster');
+    expect(mon3.pos!.test1, 3.0);
   }
 
   void test_error_addInt32_withoutStartTable([Builder? builder]) {
-    builder ??= new Builder();
+    builder ??= Builder();
     expect(() {
       builder!.addInt32(0, 0);
-    }, throwsStateError);
+    }, throwsA(isA<AssertionError>()));
   }
 
   void test_error_addOffset_withoutStartTable() {
-    Builder builder = new Builder();
+    Builder builder = Builder();
     expect(() {
       builder.addOffset(0, 0);
-    }, throwsStateError);
+    }, throwsA(isA<AssertionError>()));
   }
 
   void test_error_endTable_withoutStartTable() {
-    Builder builder = new Builder();
+    Builder builder = Builder();
     expect(() {
       builder.endTable();
-    }, throwsStateError);
+    }, throwsA(isA<AssertionError>()));
   }
 
   void test_error_startTable_duringTable() {
-    Builder builder = new Builder();
+    Builder builder = Builder();
     builder.startTable(0);
     expect(() {
       builder.startTable(0);
-    }, throwsStateError);
+    }, throwsA(isA<AssertionError>()));
   }
 
   void test_error_writeString_duringTable() {
-    Builder builder = new Builder();
+    Builder builder = Builder();
     builder.startTable(1);
     expect(() {
       builder.writeString('12345');
-    }, throwsStateError);
+    }, throwsA(isA<AssertionError>()));
   }
 
   void test_file_identifier() {
     Uint8List byteList;
     {
-      Builder builder = new Builder(initialSize: 0);
+      Builder builder = Builder(initialSize: 0);
       builder.startTable(0);
       int offset = builder.endTable();
       builder.finish(offset, 'Az~ÿ');
@@ -307,7 +327,7 @@ class BuilderTest {
       expect(builder.size(), byteList.length);
     }
     // read and verify
-    BufferContext buffer = new BufferContext.fromBytes(byteList);
+    BufferContext buffer = BufferContext.fromBytes(byteList);
     int objectOffset = buffer.derefObject(0);
     // was not written, so uses the new default value
     expect(
@@ -324,7 +344,7 @@ class BuilderTest {
   void test_table_format([Builder? builder]) {
     Uint8List byteList;
     {
-      builder ??= new Builder(initialSize: 0);
+      builder ??= Builder(initialSize: 0);
       builder.startTable(3);
       builder.addInt32(0, 10);
       builder.addInt32(1, 20);
@@ -359,7 +379,7 @@ class BuilderTest {
     String unicodeString = 'Проба пера';
     List<int> byteList;
     {
-      Builder builder = new Builder(initialSize: 0);
+      Builder builder = Builder(initialSize: 0);
       int? latinStringOffset =
           builder.writeString(latinString, asciiOptimization: true);
       int? unicodeStringOffset =
@@ -372,14 +392,14 @@ class BuilderTest {
       byteList = builder.buffer;
     }
     // read and verify
-    BufferContext buf = new BufferContext.fromBytes(byteList);
+    BufferContext buf = BufferContext.fromBytes(byteList);
     int objectOffset = buf.derefObject(0);
     expect(
         const StringReader()
             .vTableGetNullable(buf, objectOffset, indexToField(0)),
         latinString);
     expect(
-        const StringReader()
+        const StringReader(asciiOptimization: true)
             .vTableGetNullable(buf, objectOffset, indexToField(1)),
         unicodeString);
   }
@@ -387,7 +407,7 @@ class BuilderTest {
   void test_table_types([Builder? builder]) {
     List<int> byteList;
     {
-      builder ??= new Builder(initialSize: 0);
+      builder ??= Builder(initialSize: 0);
       int? stringOffset = builder.writeString('12345');
       builder.startTable(7);
       builder.addBool(0, true);
@@ -402,7 +422,7 @@ class BuilderTest {
       byteList = builder.buffer;
     }
     // read and verify
-    BufferContext buf = new BufferContext.fromBytes(byteList);
+    BufferContext buf = BufferContext.fromBytes(byteList);
     int objectOffset = buf.derefObject(0);
     expect(
         const BoolReader()
@@ -439,13 +459,13 @@ class BuilderTest {
     // write
     List<int> byteList;
     {
-      Builder builder = new Builder(initialSize: 0);
+      Builder builder = Builder(initialSize: 0);
       int offset = builder.writeListUint32(values);
       builder.finish(offset);
       byteList = builder.buffer;
     }
     // read and verify
-    BufferContext buf = new BufferContext.fromBytes(byteList);
+    BufferContext buf = BufferContext.fromBytes(byteList);
     List<int> items = const Uint32ListReader().read(buf, 0);
     expect(items, hasLength(4));
     expect(items, orderedEquals(values));
@@ -456,8 +476,8 @@ class BuilderTest {
       // write
       List<int> byteList;
       {
-        Builder builder = new Builder(initialSize: 0);
-        List<bool> values = new List<bool>.filled(len, false);
+        Builder builder = Builder(initialSize: 0);
+        List<bool> values = List<bool>.filled(len, false);
         for (int bit in trueBits) {
           values[bit] = true;
         }
@@ -466,7 +486,7 @@ class BuilderTest {
         byteList = builder.buffer;
       }
       // read and verify
-      BufferContext buf = new BufferContext.fromBytes(byteList);
+      BufferContext buf = BufferContext.fromBytes(byteList);
       List<bool> items = const BoolListReader().read(buf, 0);
       expect(items, hasLength(len));
       for (int i = 0; i < items.length; i++) {
@@ -485,26 +505,26 @@ class BuilderTest {
     verifyListBooleans(33, <int>[1, 2, 24, 25, 31, 32]);
     verifyListBooleans(63, <int>[]);
     verifyListBooleans(63, <int>[0, 1, 2, 61, 62]);
-    verifyListBooleans(63, new List<int>.generate(63, (i) => i));
+    verifyListBooleans(63, List<int>.generate(63, (i) => i));
     verifyListBooleans(64, <int>[]);
     verifyListBooleans(64, <int>[0, 1, 2, 61, 62, 63]);
     verifyListBooleans(64, <int>[1, 2, 62]);
     verifyListBooleans(64, <int>[0, 1, 2, 63]);
-    verifyListBooleans(64, new List<int>.generate(64, (i) => i));
+    verifyListBooleans(64, List<int>.generate(64, (i) => i));
     verifyListBooleans(100, <int>[0, 3, 30, 60, 90, 99]);
   }
 
   void test_writeList_ofInt32() {
     List<int> byteList;
     {
-      Builder builder = new Builder(initialSize: 0);
+      Builder builder = Builder(initialSize: 0);
       int offset = builder.writeListInt32(<int>[1, 2, 3, 4, 5]);
       builder.finish(offset);
       byteList = builder.buffer;
     }
     // read and verify
-    BufferContext buf = new BufferContext.fromBytes(byteList);
-    List<int> items = const ListReader<int>(const Int32Reader()).read(buf, 0);
+    BufferContext buf = BufferContext.fromBytes(byteList);
+    List<int> items = const ListReader<int>(Int32Reader()).read(buf, 0);
     expect(items, hasLength(5));
     expect(items, orderedEquals(<int>[1, 2, 3, 4, 5]));
   }
@@ -514,14 +534,14 @@ class BuilderTest {
     // write
     List<int> byteList;
     {
-      Builder builder = new Builder(initialSize: 0);
+      Builder builder = Builder(initialSize: 0);
       int offset = builder.writeListFloat64(values);
       builder.finish(offset);
       byteList = builder.buffer;
     }
 
     // read and verify
-    BufferContext buf = new BufferContext.fromBytes(byteList);
+    BufferContext buf = BufferContext.fromBytes(byteList);
     List<double> items = const Float64ListReader().read(buf, 0);
 
     expect(items, hasLength(values.length));
@@ -535,13 +555,13 @@ class BuilderTest {
     // write
     List<int> byteList;
     {
-      Builder builder = new Builder(initialSize: 0);
+      Builder builder = Builder(initialSize: 0);
       int offset = builder.writeListFloat32(values);
       builder.finish(offset);
       byteList = builder.buffer;
     }
     // read and verify
-    BufferContext buf = new BufferContext.fromBytes(byteList);
+    BufferContext buf = BufferContext.fromBytes(byteList);
     List<double> items = const Float32ListReader().read(buf, 0);
     expect(items, hasLength(5));
     for (int i = 0; i < values.length; i++) {
@@ -552,7 +572,7 @@ class BuilderTest {
   void test_writeList_ofObjects([Builder? builder]) {
     List<int> byteList;
     {
-      builder ??= new Builder(initialSize: 0);
+      builder ??= Builder(initialSize: 0);
       // write the object #1
       int object1;
       {
@@ -575,9 +595,9 @@ class BuilderTest {
       byteList = builder.buffer;
     }
     // read and verify
-    BufferContext buf = new BufferContext.fromBytes(byteList);
+    BufferContext buf = BufferContext.fromBytes(byteList);
     List<TestPointImpl> items =
-        const ListReader<TestPointImpl>(const TestPointReader()).read(buf, 0);
+        const ListReader<TestPointImpl>(TestPointReader()).read(buf, 0);
     expect(items, hasLength(2));
     expect(items[0].x, 10);
     expect(items[0].y, 20);
@@ -588,7 +608,7 @@ class BuilderTest {
   void test_writeList_ofStrings_asRoot() {
     List<int> byteList;
     {
-      Builder builder = new Builder(initialSize: 0);
+      Builder builder = Builder(initialSize: 0);
       int? str1 = builder.writeString('12345');
       int? str2 = builder.writeString('ABC');
       int offset = builder.writeList([str1, str2]);
@@ -596,9 +616,8 @@ class BuilderTest {
       byteList = builder.buffer;
     }
     // read and verify
-    BufferContext buf = new BufferContext.fromBytes(byteList);
-    List<String> items =
-        const ListReader<String>(const StringReader()).read(buf, 0);
+    BufferContext buf = BufferContext.fromBytes(byteList);
+    List<String> items = const ListReader<String>(StringReader()).read(buf, 0);
     expect(items, hasLength(2));
     expect(items, contains('12345'));
     expect(items, contains('ABC'));
@@ -607,7 +626,7 @@ class BuilderTest {
   void test_writeList_ofStrings_inObject([Builder? builder]) {
     List<int> byteList;
     {
-      builder ??= new Builder(initialSize: 0);
+      builder ??= Builder(initialSize: 0);
       int listOffset = builder.writeList(
           [builder.writeString('12345'), builder.writeString('ABC')]);
       builder.startTable(1);
@@ -617,8 +636,8 @@ class BuilderTest {
       byteList = builder.buffer;
     }
     // read and verify
-    BufferContext buf = new BufferContext.fromBytes(byteList);
-    StringListWrapperImpl reader = new StringListWrapperReader().read(buf, 0);
+    BufferContext buf = BufferContext.fromBytes(byteList);
+    StringListWrapperImpl reader = StringListWrapperReader().read(buf, 0);
     List<String>? items = reader.items;
     expect(items, hasLength(2));
     expect(items, contains('12345'));
@@ -628,13 +647,13 @@ class BuilderTest {
   void test_writeList_ofUint32() {
     List<int> byteList;
     {
-      Builder builder = new Builder(initialSize: 0);
+      Builder builder = Builder(initialSize: 0);
       int offset = builder.writeListUint32(<int>[1, 2, 0x9ABCDEF0]);
       builder.finish(offset);
       byteList = builder.buffer;
     }
     // read and verify
-    BufferContext buf = new BufferContext.fromBytes(byteList);
+    BufferContext buf = BufferContext.fromBytes(byteList);
     List<int> items = const Uint32ListReader().read(buf, 0);
     expect(items, hasLength(3));
     expect(items, orderedEquals(<int>[1, 2, 0x9ABCDEF0]));
@@ -643,13 +662,13 @@ class BuilderTest {
   void test_writeList_ofUint16() {
     List<int> byteList;
     {
-      Builder builder = new Builder(initialSize: 0);
+      Builder builder = Builder(initialSize: 0);
       int offset = builder.writeListUint16(<int>[1, 2, 60000]);
       builder.finish(offset);
       byteList = builder.buffer;
     }
     // read and verify
-    BufferContext buf = new BufferContext.fromBytes(byteList);
+    BufferContext buf = BufferContext.fromBytes(byteList);
     List<int> items = const Uint16ListReader().read(buf, 0);
     expect(items, hasLength(3));
     expect(items, orderedEquals(<int>[1, 2, 60000]));
@@ -658,16 +677,26 @@ class BuilderTest {
   void test_writeList_ofUint8() {
     List<int> byteList;
     {
-      Builder builder = new Builder(initialSize: 0);
-      int offset = builder.writeListUint8(<int>[1, 2, 3, 4, 0x9A]);
+      Builder builder = Builder(initialSize: 0);
+      int offset = builder.writeListUint8(<int>[1, 2, 3, 4, 0x9A, 0xFA]);
       builder.finish(offset);
       byteList = builder.buffer;
     }
     // read and verify
-    BufferContext buf = new BufferContext.fromBytes(byteList);
-    List<int> items = const Uint8ListReader().read(buf, 0);
-    expect(items, hasLength(5));
-    expect(items, orderedEquals(<int>[1, 2, 3, 4, 0x9A]));
+    BufferContext buf = BufferContext.fromBytes(byteList);
+    const buffOffset = 8; // 32-bit offset to the list, + 32-bit length
+    for (final lazy in [true, false]) {
+      List<int> items = Uint8ListReader(lazy: lazy).read(buf, 0);
+      expect(items, hasLength(6));
+      expect(items, orderedEquals(<int>[1, 2, 3, 4, 0x9A, 0xFA]));
+
+      // overwrite the buffer to verify the laziness
+      buf.buffer.setUint8(buffOffset + 1, 99);
+      expect(items, orderedEquals(<int>[1, lazy ? 99 : 2, 3, 4, 0x9A, 0xFA]));
+
+      // restore the previous value for the next loop
+      buf.buffer.setUint8(buffOffset + 1, 2);
+    }
   }
 
   void test_reset() {
@@ -687,22 +716,22 @@ class BuilderTest {
         _permutationsOf(List.generate(testCases.length, (index) => index));
     expect(testCasesPermutations.length, _factorial(testCases.length));
 
-    testCasesPermutations.forEach((List<int> indexes) {
+    for (var indexes in testCasesPermutations) {
       // print the order so failures are reproducible
       printOnFailure('Running reset() test cases in order: $indexes');
 
       Builder? builder;
-      indexes.forEach((index) {
+      for (var index in indexes) {
         if (builder == null) {
           // Initial size small enough so at least one test case increases it.
           // On the other hand, it's large enough so that some test cases don't.
           builder = Builder(initialSize: 32);
         } else {
-          builder!.reset();
+          builder.reset();
         }
         testCases[index](builder);
-      });
-    });
+      }
+    }
   }
 
   // Generate permutations of the given list
@@ -731,7 +760,9 @@ class BuilderTest {
   // a very simple implementation of n!
   int _factorial(int n) {
     var result = 1;
-    for (var i = 2; i <= n; i++) result *= i;
+    for (var i = 2; i <= n; i++) {
+      result *= i;
+    }
     return result;
   }
 }
@@ -836,7 +867,7 @@ class StringListWrapperImpl {
 
   StringListWrapperImpl(this.bp, this.offset);
 
-  List<String>? get items => const ListReader<String>(const StringReader())
+  List<String>? get items => const ListReader<String>(StringReader())
       .vTableGetNullable(bp, offset, indexToField(0));
 }
 
@@ -845,7 +876,7 @@ class StringListWrapperReader extends TableReader<StringListWrapperImpl> {
 
   @override
   StringListWrapperImpl createObject(BufferContext object, int offset) {
-    return new StringListWrapperImpl(object, offset);
+    return StringListWrapperImpl(object, offset);
   }
 }
 
@@ -865,7 +896,7 @@ class TestPointReader extends TableReader<TestPointImpl> {
 
   @override
   TestPointImpl createObject(BufferContext object, int offset) {
-    return new TestPointImpl(object, offset);
+    return TestPointImpl(object, offset);
   }
 }
 
@@ -879,5 +910,34 @@ class GeneratorTest {
         same(example.AnyUniqueAliasesTypeId.values));
     expect(example.AnyAmbiguousAliasesTypeId.values,
         same(example.AnyAmbiguousAliasesTypeId.values));
+  }
+}
+
+// See #6869
+@reflectiveTest
+class ListOfEnumsTest {
+  void test_listOfEnums() async {
+    var mytable = example3.MyTableObjectBuilder(options: [
+      example3.OptionsEnum.A,
+      example3.OptionsEnum.B,
+      example3.OptionsEnum.C
+    ]);
+    var bytes = mytable.toBytes();
+    var mytable_read = example3.MyTable(bytes);
+    expect(mytable_read.options![0].value, example3.OptionsEnum.A.value);
+    expect(mytable_read.options![1].value, example3.OptionsEnum.B.value);
+    expect(mytable_read.options![2].value, example3.OptionsEnum.C.value);
+  }
+}
+
+@reflectiveTest
+class BoolInStructTest {
+  void test_boolInStruct() async {
+    var mystruct = example4.FooObjectBuilder(
+        myFoo: example4.FooPropertiesObjectBuilder(a: true, b: false));
+    var bytes = mystruct.toBytes();
+    var mystruct_read = example4.Foo(bytes);
+    expect(mystruct_read.myFoo!.a, true);
+    expect(mystruct_read.myFoo!.b, false);
   }
 }

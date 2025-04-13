@@ -31,15 +31,20 @@ class HelloReply(object):
             return self._tab.String(o + self._tab.Pos)
         return None
 
-def Start(builder): builder.StartObject(1)
 def HelloReplyStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddMessage(builder, message): builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(message), 0)
+    builder.StartObject(1)
+
+def Start(builder):
+    HelloReplyStart(builder)
+
 def HelloReplyAddMessage(builder, message):
-    """This method is deprecated. Please switch to AddMessage."""
-    return AddMessage(builder, message)
-def End(builder): return builder.EndObject()
+    builder.PrependUOffsetTRelativeSlot(0, flatbuffers.number_types.UOffsetTFlags.py_type(message), 0)
+
+def AddMessage(builder, message):
+    HelloReplyAddMessage(builder, message)
+
 def HelloReplyEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return HelloReplyEnd(builder)

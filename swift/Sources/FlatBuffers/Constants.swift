@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google Inc. All rights reserved.
+ * Copyright 2024 Google Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-#if os(Linux)
-import CoreFoundation
-#else
 import Foundation
-#endif
 
 /// A boolean to see if the system is littleEndian
-let isLitteEndian = CFByteOrderGetCurrent() == Int(CFByteOrderLittleEndian.rawValue)
+let isLitteEndian: Bool = {
+  let number: UInt32 = 0x12345678
+  return number == number.littleEndian
+}()
 /// Constant for the file id length
 let FileIdLength = 4
 /// Type aliases
@@ -30,7 +29,8 @@ public typealias UOffset = UInt32
 public typealias SOffset = Int32
 public typealias VOffset = UInt16
 /// Maximum size for a buffer
-public let FlatBufferMaxSize = UInt32.max << ((MemoryLayout<SOffset>.size * 8 - 1) - 1)
+public let FlatBufferMaxSize = UInt32
+  .max << ((MemoryLayout<SOffset>.size * 8 - 1) - 1)
 
 /// Protocol that All Scalars should conform to
 ///
@@ -111,4 +111,4 @@ extension UInt64: Scalar, Verifiable {
   public typealias NumericValue = UInt64
 }
 
-public func FlatBuffersVersion_2_0_0() {}
+public func FlatBuffersVersion_25_2_10() {}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 Google Inc. All rights reserved.
+ * Copyright 2024 Google Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,8 @@
 import Foundation
 
 /// Enum is a protocol that all flatbuffers enums should conform to
-/// Since it allows us to get the actual `ByteSize` and `Value`
+/// Since it allows us to get the actual `ByteSize` and `Value` from
+/// a swift enum.
 public protocol Enum {
   /// associatedtype that the type of the enum should conform to
   associatedtype T: Scalar & Verifiable

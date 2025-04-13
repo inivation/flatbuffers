@@ -7,7 +7,7 @@ namespace MyGame.Example
 
 using global::System;
 using global::System.Collections.Generic;
-using global::FlatBuffers;
+using global::Google.FlatBuffers;
 
 public struct StructOfStructs : IFlatbufferObject
 {
@@ -61,7 +61,7 @@ public struct StructOfStructs : IFlatbufferObject
       _c_id,
       _c_distance);
   }
-};
+}
 
 public class StructOfStructsT
 {

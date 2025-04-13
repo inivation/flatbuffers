@@ -35,18 +35,24 @@ class TestSimpleTableWithEnum(object):
             return self._tab.Get(flatbuffers.number_types.Uint8Flags, o + self._tab.Pos)
         return 2
 
-def Start(builder): builder.StartObject(1)
 def TestSimpleTableWithEnumStart(builder):
-    """This method is deprecated. Please switch to Start."""
-    return Start(builder)
-def AddColor(builder, color): builder.PrependUint8Slot(0, color, 2)
+    builder.StartObject(1)
+
+def Start(builder):
+    TestSimpleTableWithEnumStart(builder)
+
 def TestSimpleTableWithEnumAddColor(builder, color):
-    """This method is deprecated. Please switch to AddColor."""
-    return AddColor(builder, color)
-def End(builder): return builder.EndObject()
+    builder.PrependUint8Slot(0, color, 2)
+
+def AddColor(builder, color):
+    TestSimpleTableWithEnumAddColor(builder, color)
+
 def TestSimpleTableWithEnumEnd(builder):
-    """This method is deprecated. Please switch to End."""
-    return End(builder)
+    return builder.EndObject()
+
+def End(builder):
+    return TestSimpleTableWithEnumEnd(builder)
+
 
 class TestSimpleTableWithEnumT(object):
 
@@ -59,6 +65,11 @@ class TestSimpleTableWithEnumT(object):
         testSimpleTableWithEnum = TestSimpleTableWithEnum()
         testSimpleTableWithEnum.Init(buf, pos)
         return cls.InitFromObj(testSimpleTableWithEnum)
+
+    @classmethod
+    def InitFromPackedBuf(cls, buf, pos=0):
+        n = flatbuffers.encode.Get(flatbuffers.packer.uoffset, buf, pos)
+        return cls.InitFromBuf(buf, pos+n)
 
     @classmethod
     def InitFromObj(cls, testSimpleTableWithEnum):
@@ -74,7 +85,7 @@ class TestSimpleTableWithEnumT(object):
 
     # TestSimpleTableWithEnumT
     def Pack(self, builder):
-        Start(builder)
-        AddColor(builder, self.color)
-        testSimpleTableWithEnum = End(builder)
+        TestSimpleTableWithEnumStart(builder)
+        TestSimpleTableWithEnumAddColor(builder, self.color)
+        testSimpleTableWithEnum = TestSimpleTableWithEnumEnd(builder)
         return testSimpleTableWithEnum
