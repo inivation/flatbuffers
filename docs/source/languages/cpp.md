@@ -130,15 +130,11 @@ The following attributes are specific to the object-based API code generation:
     optionally present in a given buffer, they are best represented as pointers
     (specifically std::unique_ptrs) in the native class since they can be null.
     This attribute changes the member declaration to use the type directly
-    rather than wrapped in a unique_ptr, and can be used on struct fields,
-    table fields, as well as vectors of structs and tables. For vectors of
-    structs, this is already the default behavior and has no additional effect.
+    rather than wrapped in a unique_ptr.
 
--   `native_default("value")` (on a field): For struct members that are declared
+-   `native_default("value")` (on a field): For members that are declared
     "native_inline", the value specified with this attribute will be included
-    verbatim in the class constructor initializer list for this member, to allow
-    customized initialization of the struct members (default is zero-initialization).
-    This can also be used with scalar members to initialize with a non-zero value.
+    verbatim in the class constructor initializer list for this member.
 
 -   `native_custom_alloc("custom_allocator")` (on a table or struct): When using the
     object-based API all generated NativeTables that  are allocated when unpacking
@@ -305,15 +301,6 @@ length of the FlatBuffers String. The custom string class will require a
 constructor in the following format: `custom_str_class(const char *, size_t)`.
 Please note that the character array is not guaranteed to be NULL terminated,
 you should always use the provided size to determine end of string.
-
-# Using different vector type.
-
-By default the object tree is built out of `std::vector`, but you can
-influence this either globally (using the `--cpp-vec-type` argument
-to `flatc`) or per field using the `cpp_vec_type` attribute.
-
-The type must support T::data(), T::size(), T::resize() and T::[size_t]
-as member functions.
 
 ## Reflection (& Resizing)
 

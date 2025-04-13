@@ -25,6 +25,7 @@
 #include "flatbuffers/util.h"
 #include "idl_gen_binary.h"
 #include "idl_gen_cpp.h"
+#include "idl_gen_cppng.h"
 #include "idl_gen_csharp.h"
 #include "idl_gen_dart.h"
 #include "idl_gen_fbs.h"
@@ -90,6 +91,11 @@ int main(int argc, const char *argv[]) {
       flatbuffers::FlatCOption{ "c", "cpp", "",
                                 "Generate C++ headers for tables/structs" },
       flatbuffers::NewCppCodeGenerator());
+
+  flatc.RegisterCodeGenerator(
+      flatbuffers::FlatCOption{ "", "cppng", "",
+                                "Generate C++ headers for tables/structs (next gen)" },
+      flatbuffers::CppNextGenCodeGenerator());
 
   flatc.RegisterCodeGenerator(
       flatbuffers::FlatCOption{ "n", "csharp", "",
